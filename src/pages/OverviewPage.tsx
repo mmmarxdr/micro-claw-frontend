@@ -185,8 +185,8 @@ export function OverviewPage() {
         />
         <StatCard
           label="Active model"
-          value="—"
-          sub="configure in Settings"
+          value={(config as any)?.provider?.model ?? '—'}
+          sub={(config as any)?.provider?.type ?? 'configure in Settings'}
         />
       </div>
 

@@ -1,5 +1,5 @@
 import React from 'react'
-import { AreaChart, BarChart, DonutChart } from '@tremor/react'
+import { AreaChart, BarChart } from '@tremor/react'
 import { useMetricsHistory, useMetrics } from '../hooks/useApi'
 import { Card } from '../components/ui/Card'
 import { cn } from '../lib/utils'
@@ -88,7 +88,6 @@ export function MetricsPage() {
     'Cost (USD)': parseFloat(d.cost_usd.toFixed(6)),
   }))
 
-  const modelData = [{ name: 'Data pending', value: 1 }]
 
   // ─── Loading skeleton ────────────────────────────────────────────────────
 
@@ -174,38 +173,24 @@ export function MetricsPage() {
             />
           </ChartCard>
 
-          {/* Bottom row: model breakdown + conversations */}
+          {/* Bottom row: upcoming charts */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <ChartCard title="Model Breakdown">
-              <div className="flex flex-col items-center">
-                <DonutChart
-                  data={modelData}
-                  category="value"
-                  index="name"
-                  colors={['emerald']}
-                  className="h-40"
-                />
-                <p className="text-xs text-text-disabled mt-3 text-center">
-                  Per-model breakdown will appear once the backend tracks model usage.
+              <div className="flex flex-col items-center justify-center h-40 text-center">
+                <p className="text-sm text-text-secondary">Coming soon</p>
+                <p className="text-xs text-text-disabled mt-1">
+                  Per-model usage breakdown will appear in a future update.
                 </p>
               </div>
             </ChartCard>
 
             <ChartCard title="Conversations — Last 14 Days">
-              <BarChart
-                data={costData.slice(-14).map((d) => ({
-                  date: d.date,
-                  Conversations: 0,
-                }))}
-                index="date"
-                categories={['Conversations']}
-                colors={['emerald']}
-                showGridLines={false}
-                className="h-40"
-              />
-              <p className="text-xs text-text-disabled mt-2 text-center">
-                Per-day conversation counts will appear once the backend tracks them.
-              </p>
+              <div className="flex flex-col items-center justify-center h-40 text-center">
+                <p className="text-sm text-text-secondary">Coming soon</p>
+                <p className="text-xs text-text-disabled mt-1">
+                  Per-day conversation counts will appear in a future update.
+                </p>
+              </div>
             </ChartCard>
           </div>
         </>

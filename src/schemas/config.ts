@@ -11,7 +11,7 @@ export const configSchema = z.object({
     history_length: z.number().int().min(1).max(100),
   }),
   provider: z.object({
-    type: z.enum(['anthropic', 'openai', 'ollama', 'gemini']),
+    type: z.enum(['openrouter', 'anthropic', 'openai', 'ollama', 'gemini']),
     model: z.string().min(1, 'Model is required'),
     api_key: z.string(),    // may be masked — handled on submit
     base_url: z.string().optional(),
@@ -57,16 +57,18 @@ export type ConfigFormData = z.infer<typeof configSchema>
 
 export const MASKED_VALUE = MASKED
 
+// Static fallback when /api/models is unavailable.
 export const KNOWN_MODELS: Record<string, string[]> = {
-  anthropic: ['claude-opus-4-5', 'claude-sonnet-4-5', 'claude-haiku-3-5'],
-  openai:    ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'],
-  ollama:    ['llama3', 'mistral', 'phi3', 'gemma2'],
-  gemini:    ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.0-pro'],
+  openrouter: ['openrouter/auto', 'google/gemini-2.0-flash-001', 'anthropic/claude-sonnet-4'],
+  anthropic:  ['claude-sonnet-4-6', 'claude-opus-4-6', 'claude-haiku-4-5'],
+  openai:     ['gpt-4o', 'gpt-4o-mini', 'o3-mini'],
+  ollama:     ['llama3.2', 'mistral', 'qwen2.5-coder'],
+  gemini:     ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'],
 }
 
 export const DEFAULT_CONFIG: ConfigFormData = {
   agent: { name: 'MicroAgent', system_prompt: '', max_iterations: 10, max_tokens: 4096, history_length: 20 },
-  provider: { type: 'anthropic', model: 'claude-sonnet-4-5', api_key: '', base_url: '', timeout: 60 },
+  provider: { type: 'openrouter', model: 'openrouter/auto', api_key: '', base_url: '', timeout: 60 },
   channels: { active: 'cli', telegram: { token: '', allowed_user_ids: [] } },
   tools: {
     shell: { enabled: true, allow_all: false, allowed_commands: [] },

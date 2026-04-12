@@ -131,6 +131,12 @@ export const mockApi = {
   config: (): Promise<Record<string, unknown>> =>
     delay(JSON.parse(JSON.stringify(mockState.config))),
 
+  models: () => delay([
+    { id: 'openrouter/auto', name: 'Auto (best available)', context_length: 128000, prompt_cost: 0, completion_cost: 0, free: true },
+    { id: 'google/gemini-2.0-flash-001', name: 'Gemini 2.0 Flash', context_length: 1048576, prompt_cost: 0.1, completion_cost: 0.4, free: false },
+    { id: 'anthropic/claude-sonnet-4', name: 'Claude Sonnet 4', context_length: 200000, prompt_cost: 3, completion_cost: 15, free: false },
+  ]),
+
   updateConfig: (data: Record<string, unknown>): Promise<{ message: string }> => {
     // Deep merge top-level keys
     for (const key of Object.keys(data)) {

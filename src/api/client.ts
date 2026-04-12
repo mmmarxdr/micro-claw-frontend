@@ -1,15 +1,48 @@
 const BASE_URL = '/api'
+const TOKEN_KEY = 'microagent_auth_token'
+
+// ─── Auth token management ───────────────────────────────────────────────────
+
+export function getAuthToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY)
+}
+
+export function setAuthToken(token: string) {
+  localStorage.setItem(TOKEN_KEY, token)
+}
+
+export function clearAuthToken() {
+  localStorage.removeItem(TOKEN_KEY)
+}
+
+// ─── HTTP client ─────────────────────────────────────────────────────────────
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  const token = getAuthToken()
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
   const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     ...options,
   })
   if (!res.ok) {
+    if (res.status === 401) {
+      throw new AuthError('Unauthorized')
+    }
     const err = await res.json().catch(() => ({ error: res.statusText }))
     throw new Error(err.error ?? `HTTP ${res.status}`)
   }
   return res.json()
+}
+
+export class AuthError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'AuthError'
+  }
 }
 
 // ─── Types (mirroring API contract from dashboard-design.md) ─────────────────
@@ -63,6 +96,15 @@ export interface MemoryEntry {
   created_at: string
 }
 
+export interface ModelInfo {
+  id: string
+  name: string
+  context_length: number
+  prompt_cost: number
+  completion_cost: number
+  free: boolean
+}
+
 // ─── API functions ────────────────────────────────────────────────────────────
 
 const _realApi = {
@@ -93,6 +135,8 @@ const _realApi = {
   config: () => request<Record<string, unknown>>('/config'),
   updateConfig: (config: Record<string, unknown>) =>
     request<{ message: string }>('/config', { method: 'PUT', body: JSON.stringify(config) }),
+
+  models: () => request<ModelInfo[]>('/models'),
 }
 
 // ─── WebSocket helper ─────────────────────────────────────────────────────────
@@ -105,7 +149,11 @@ export function createWebSocket(path: string): WebSocket {
   }
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   const host = window.location.host
-  return new WebSocket(`${protocol}//${host}${path}`)
+  const token = getAuthToken()
+  const url = token
+    ? `${protocol}//${host}${path}?token=${encodeURIComponent(token)}`
+    : `${protocol}//${host}${path}`
+  return new WebSocket(url)
 }
 
 // ─── Conditional mock swap (tree-shaken in production) ────────────────────────

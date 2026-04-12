@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from './contexts/ThemeContext'
+import { AuthGate } from './components/AuthGate'
 import { AppLayout } from './components/layout/AppLayout'
 import { OverviewPage } from './pages/OverviewPage'
 import { MetricsPage } from './pages/MetricsPage'
@@ -32,6 +33,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
+      <AuthGate>
       <BrowserRouter>
         <MetricsSyncSocket />
         <Routes>
@@ -47,6 +49,7 @@ export default function App() {
           </Route>
         </Routes>
       </BrowserRouter>
+      </AuthGate>
       </ThemeProvider>
     </QueryClientProvider>
   )

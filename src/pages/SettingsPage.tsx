@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
+import type { ModelInfo } from '../api/client'
 import { configSchema, DEFAULT_CONFIG, KNOWN_MODELS, MASKED_VALUE } from '../schemas/config'
 import type { ConfigFormData } from '../schemas/config'
 import { Button } from '../components/ui/Button'
@@ -84,6 +85,28 @@ export function SettingsPage() {
   const selectedProvider = watch('provider.type')
   const activeChannel = watch('channels.active')
   const shellAllowAll = watch('tools.shell.allow_all')
+
+  // Dynamic model list from API (OpenRouter returns 350+ models).
+  const { data: remoteModels } = useQuery<ModelInfo[]>({
+    queryKey: ['models'],
+    queryFn: api.models,
+    staleTime: 5 * 60_000,
+    retry: 1,
+  })
+
+  const [modelFilter, setModelFilter] = useState('')
+
+  const modelOptions = useMemo(() => {
+    // If we have remote models and provider is openrouter, use them.
+    if (remoteModels && remoteModels.length > 0 && selectedProvider === 'openrouter') {
+      const lowerFilter = modelFilter.toLowerCase()
+      return remoteModels
+        .filter(m => !lowerFilter || m.id.toLowerCase().includes(lowerFilter) || m.name.toLowerCase().includes(lowerFilter))
+        .slice(0, 50) // cap for performance
+    }
+    // Static fallback for other providers.
+    return (KNOWN_MODELS[selectedProvider] ?? []).map(id => ({ id, name: id, context_length: 0, prompt_cost: 0, completion_cost: 0, free: false }))
+  }, [remoteModels, selectedProvider, modelFilter])
 
   if (isLoading) {
     return (
@@ -174,6 +197,7 @@ export function SettingsPage() {
           <div className="space-y-5">
             <FormField label="Provider" error={errors.provider?.type?.message}>
               <Select {...register('provider.type')}>
+                <option value="openrouter">OpenRouter</option>
                 <option value="anthropic">Anthropic</option>
                 <option value="openai">OpenAI</option>
                 <option value="ollama">Ollama</option>
@@ -181,11 +205,31 @@ export function SettingsPage() {
               </Select>
             </FormField>
             <FormField label="Model" error={errors.provider?.model?.message} required>
-              <Select {...register('provider.model')}>
-                {(KNOWN_MODELS[selectedProvider] ?? []).map(m => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </Select>
+              {selectedProvider === 'openrouter' && remoteModels && remoteModels.length > 0 ? (
+                <div className="space-y-2">
+                  <Input
+                    value={modelFilter}
+                    onChange={e => setModelFilter(e.target.value)}
+                    placeholder="Filter models…"
+                  />
+                  <Select {...register('provider.model')}>
+                    {modelOptions.map(m => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}{m.free ? ' (free)' : m.prompt_cost > 0 ? ` ($${m.prompt_cost}/M)` : ''}
+                      </option>
+                    ))}
+                  </Select>
+                  <p className="text-xs text-text-disabled">
+                    {remoteModels.length} models available{modelFilter ? `, showing ${modelOptions.length}` : ''}
+                  </p>
+                </div>
+              ) : (
+                <Select {...register('provider.model')}>
+                  {modelOptions.map(m => (
+                    <option key={m.id} value={m.id}>{m.id}</option>
+                  ))}
+                </Select>
+              )}
             </FormField>
             <FormField label="API key" hint="Leave unchanged to keep existing key.">
               <Input type="password" {...register('provider.api_key')} placeholder="sk-…" autoComplete="off" />
@@ -208,7 +252,7 @@ export function SettingsPage() {
                 <Select {...register('channels.active')}>
                   <option value="cli">CLI</option>
                   <option value="telegram">Telegram</option>
-                  <option value="discord">Discord (Phase 3)</option>
+                  <option value="discord">Discord</option>
                 </Select>
               </FormField>
             </div>

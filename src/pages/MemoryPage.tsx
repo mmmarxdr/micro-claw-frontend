@@ -8,7 +8,7 @@ import { Button } from '../components/ui/Button'
 import { Toast } from '../components/ui/Toast'
 import { FormField } from '../components/ui/FormField'
 import { TagInput } from '../components/ui/TagInput'
-import { Brain, ExternalLink, Plus } from 'lucide-react'
+import { Brain, ExternalLink, Plus, Trash2 } from 'lucide-react'
 
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
@@ -74,6 +74,21 @@ export function MemoryPage() {
     },
     onError: () => setToast({ message: 'Failed to add entry.', variant: 'error' }),
   })
+
+  const { mutate: deleteEntry } = useMutation({
+    mutationFn: (id: string) => api.deleteMemoryEntry(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['memory'] })
+      setToast({ message: 'Entry deleted.', variant: 'success' })
+    },
+    onError: () => setToast({ message: 'Failed to delete entry.', variant: 'error' }),
+  })
+
+  const handleDeleteEntry = (id: string) => {
+    if (window.confirm('Delete this memory entry?')) {
+      deleteEntry(id)
+    }
+  }
 
   const handleClearAll = () => {
     if (window.confirm('Clear all memory entries? This cannot be undone.')) {
@@ -215,15 +230,24 @@ export function MemoryPage() {
                 <span className="text-xs text-text-disabled font-mono">
                   {relativeTime(entry.created_at)}
                 </span>
-                {entry.source_conversation_id && (
-                  <Link
-                    to={`/conversations/${entry.source_conversation_id}`}
-                    className="inline-flex items-center gap-1 text-xs text-accent hover:text-accent-hover transition-colors font-medium"
+                <div className="flex items-center gap-3">
+                  {entry.source_conversation_id && (
+                    <Link
+                      to={`/conversations/${entry.source_conversation_id}`}
+                      className="inline-flex items-center gap-1 text-xs text-accent hover:text-accent-hover transition-colors font-medium"
+                    >
+                      <ExternalLink size={11} />
+                      Conversation
+                    </Link>
+                  )}
+                  <button
+                    onClick={() => handleDeleteEntry(entry.id)}
+                    className="inline-flex items-center gap-1 text-xs text-text-disabled hover:text-error transition-colors"
+                    title="Delete entry"
                   >
-                    <ExternalLink size={11} />
-                    Conversation
-                  </Link>
-                )}
+                    <Trash2 size={12} />
+                  </button>
+                </div>
               </div>
             </div>
           ))}
