@@ -2,7 +2,7 @@
 // Provides in-memory implementations of the real API and WebSocket interfaces.
 // Activated when VITE_MOCK === 'true'. Never imported in production builds.
 
-import type { AgentStatus, MetricsSnapshot, Conversation, MemoryEntry } from './client'
+import type { AgentStatus, MetricsSnapshot, Conversation, ConversationSummary, MemoryEntry } from './client'
 import {
   seedStatus,
   seedMetrics,
@@ -68,7 +68,7 @@ export const mockApi = {
   metricsHistory: (days = 30): Promise<MetricsSnapshot> =>
     delay(buildMetricsHistory(days)),
 
-  conversations: (params?: { limit?: number; offset?: number; channel?: string }): Promise<{ items: Conversation[]; total: number }> => {
+  conversations: (params?: { limit?: number; offset?: number; channel?: string }): Promise<{ items: ConversationSummary[]; total: number }> => {
     let items = mockState.conversations
     if (params?.channel) {
       const ch = params.channel.toLowerCase()
@@ -78,7 +78,14 @@ export const mockApi = {
     const offset = params?.offset ?? 0
     const limit  = params?.limit  ?? 20
     const page   = items.slice(offset, offset + limit)
-    return delay({ items: page.map(c => ({ ...c, messages: [...c.messages] })), total })
+    const summaries: ConversationSummary[] = page.map(c => ({
+      id:            c.id,
+      channel_id:    c.channel_id,
+      message_count: c.messages.length,
+      last_message:  c.messages.length > 0 ? c.messages[c.messages.length - 1].content : '',
+      updated_at:    c.updated_at,
+    }))
+    return delay({ items: summaries, total })
   },
 
   conversation: (id: string): Promise<Conversation> => {

@@ -10,7 +10,8 @@ interface TagInputProps {
   disabled?: boolean
 }
 
-export function TagInput({ value, onChange, placeholder = 'Type and press Enter', disabled }: TagInputProps) {
+export function TagInput({ value: rawValue, onChange, placeholder = 'Type and press Enter', disabled }: TagInputProps) {
+  const value = rawValue ?? []
   const [inputVal, setInputVal] = useState('')
 
   const addTag = (tag: string) => {
@@ -35,8 +36,8 @@ export function TagInput({ value, onChange, placeholder = 'Type and press Enter'
 
   return (
     <div className={cn(
-      'flex flex-wrap gap-1.5 border border-border rounded-md px-3 py-2 min-h-[40px] bg-background',
-      'focus-within:ring-2 focus-within:ring-accent focus-within:ring-offset-2',
+      'flex flex-wrap gap-1.5 border border-border rounded-md px-3 py-2 min-h-[40px] bg-surface',
+      'focus-within:ring-1 focus-within:ring-border-strong focus-within:border-border-strong',
       disabled && 'opacity-50 pointer-events-none'
     )}>
       {value.map(tag => (

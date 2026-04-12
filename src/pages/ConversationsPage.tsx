@@ -118,9 +118,8 @@ export function ConversationsPage() {
           {!isLoading &&
             !isError &&
             data?.items.map((conv) => {
-              const firstMsg = conv.messages[0]
-              const preview = firstMsg
-                ? firstMsg.content.slice(0, 80) + (firstMsg.content.length > 80 ? '…' : '')
+              const preview = conv.last_message
+                ? conv.last_message.slice(0, 80) + (conv.last_message.length > 80 ? '…' : '')
                 : '(no messages)'
 
               return (
@@ -144,7 +143,7 @@ export function ConversationsPage() {
                     {relativeTime(conv.updated_at)}
                   </p>
                   <p className="text-xs text-text-secondary font-mono text-right hidden lg:block">
-                    {conv.messages.length}
+                    {conv.message_count}
                   </p>
                   <div className="flex justify-end">
                     <Button

@@ -88,6 +88,16 @@ export interface Conversation {
   updated_at: string
 }
 
+// Summary shape returned by GET /api/conversations (list endpoint).
+// The full Conversation (with messages array) is only returned by GET /api/conversations/:id.
+export interface ConversationSummary {
+  id: string
+  channel_id: string
+  message_count: number
+  last_message: string
+  updated_at: string
+}
+
 export interface MemoryEntry {
   id: string
   content: string
@@ -118,7 +128,7 @@ const _realApi = {
     if (params?.limit)   q.set('limit',   String(params.limit))
     if (params?.offset)  q.set('offset',  String(params.offset))
     if (params?.channel) q.set('channel', params.channel)
-    return request<{ items: Conversation[]; total: number }>(`/conversations?${q}`)
+    return request<{ items: ConversationSummary[]; total: number }>(`/conversations?${q}`)
   },
 
   conversation: (id: string) => request<Conversation>(`/conversations/${id}`),

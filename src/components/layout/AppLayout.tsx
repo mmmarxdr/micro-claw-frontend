@@ -22,7 +22,7 @@ export function AppLayout() {
           />
         )}
 
-        <main className="flex-1 bg-background overflow-hidden min-w-0">
+        <main className="flex-1 bg-background overflow-y-auto min-w-0">
           {/* Hamburger button — only visible below md */}
           <button
             onClick={() => setDrawerOpen(true)}
