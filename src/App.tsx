@@ -10,6 +10,7 @@ import { ConversationDetailPage } from './pages/ConversationDetailPage'
 import { MemoryPage } from './pages/MemoryPage'
 import { ChatPage } from './pages/ChatPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { ToolsPage } from './pages/ToolsPage'
 import { LogsPage } from './pages/LogsPage'
 import { useMetricsSocket } from './hooks/useMetricsSocket'
 
@@ -44,6 +45,7 @@ export default function App() {
             <Route path="conversations/:id" element={<ConversationDetailPage />} />
             <Route path="memory" element={<MemoryPage />} />
             <Route path="chat" element={<ChatPage />} />
+            <Route path="tools" element={<ToolsPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="logs" element={<LogsPage />} />
           </Route>

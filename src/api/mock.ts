@@ -164,6 +164,14 @@ export const mockApi = {
     }
     return delay({ message: 'Settings saved successfully.' })
   },
+
+  tools: () => delay([
+    { name: 'shell_exec', description: 'Execute a shell command', schema: { type: 'object', properties: { command: { type: 'string' } }, required: ['command'] } },
+    { name: 'read_file', description: 'Read file contents', schema: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] } },
+    { name: 'write_file', description: 'Write content to a file', schema: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' } }, required: ['path', 'content'] } },
+    { name: 'list_files', description: 'List files in a directory', schema: { type: 'object', properties: { path: { type: 'string' } } } },
+    { name: 'http_fetch', description: 'Fetch content from a URL', schema: { type: 'object', properties: { url: { type: 'string' }, method: { type: 'string' } }, required: ['url'] } },
+  ]),
 }
 
 // ─── Task 2.4–2.9: MockWebSocket class ───────────────────────────────────────

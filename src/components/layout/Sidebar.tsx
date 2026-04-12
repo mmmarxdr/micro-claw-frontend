@@ -5,6 +5,7 @@ import {
   MessageSquare,
   Brain,
   Bot,
+  Wrench,
   Settings,
   ScrollText,
   X,
@@ -20,6 +21,7 @@ const navItems = [
   { to: '/conversations', label: 'Conversations', icon: MessageSquare },
   { to: '/memory',        label: 'Memory',        icon: Brain },
   { to: '/chat',          label: 'Chat',          icon: Bot },
+  { to: '/tools',         label: 'Tools',         icon: Wrench },
   { to: '/settings',      label: 'Settings',      icon: Settings },
   { to: '/logs',          label: 'Logs',          icon: ScrollText },
 ]

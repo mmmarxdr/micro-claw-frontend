@@ -106,6 +106,12 @@ export interface MemoryEntry {
   created_at: string
 }
 
+export interface ToolInfo {
+  name: string
+  description: string
+  schema: Record<string, unknown>
+}
+
 export interface ModelInfo {
   id: string
   name: string
@@ -145,6 +151,8 @@ const _realApi = {
   config: () => request<Record<string, unknown>>('/config'),
   updateConfig: (config: Record<string, unknown>) =>
     request<{ message: string }>('/config', { method: 'PUT', body: JSON.stringify(config) }),
+
+  tools: () => request<ToolInfo[]>('/tools'),
 
   models: () => request<ModelInfo[]>('/models'),
 }
