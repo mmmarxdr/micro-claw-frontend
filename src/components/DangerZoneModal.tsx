@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button } from './ui/Button'
-import { Input } from './ui/Input'
 
 interface DangerZoneModalProps {
   isOpen: boolean
@@ -27,6 +26,11 @@ export function DangerZoneModal({
     }
   }, [isOpen])
 
+  const handleClose = () => {
+    setInputValue('')
+    onClose()
+  }
+
   // Handle Escape key
   useEffect(() => {
     if (!isOpen) return
@@ -38,11 +42,6 @@ export function DangerZoneModal({
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [isOpen]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  function handleClose() {
-    setInputValue('')
-    onClose()
-  }
 
   async function handleConfirm() {
     if (inputValue !== 'DELETE') return
@@ -122,7 +121,7 @@ export function DangerZoneModal({
               </span>{' '}
               to confirm
             </label>
-            <Input
+            <input
               id="danger-confirm-input"
               ref={inputRef}
               type="text"
@@ -132,6 +131,7 @@ export function DangerZoneModal({
               autoComplete="off"
               spellCheck={false}
               disabled={isPending}
+              className="w-full bg-transparent border border-border rounded-md px-3 py-2 text-sm text-text-primary placeholder:text-text-disabled focus:outline-none focus:border-border-strong focus:ring-1 focus:ring-border-strong"
             />
           </div>
 
