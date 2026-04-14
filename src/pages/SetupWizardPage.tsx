@@ -445,7 +445,7 @@ function DoneStep({ providerId, model, apiKey, baseUrl }: DoneStepProps) {
         model,
         base_url: baseUrl || undefined,
       })
-      .then((res) => {
+      .then(() => {
         // Auth cookie set automatically by the backend via Set-Cookie.
         setLoading(false)
         setDone(true)
@@ -467,7 +467,7 @@ function DoneStep({ providerId, model, apiKey, baseUrl }: DoneStepProps) {
     setLoading(true)
     setupApi
       .complete({ provider: providerId, api_key: apiKey, model, base_url: baseUrl || undefined })
-      .then((res) => {
+      .then(() => {
         // Auth cookie set automatically by the backend via Set-Cookie.
         setLoading(false)
         setDone(true)

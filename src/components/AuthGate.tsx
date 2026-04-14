@@ -1,5 +1,5 @@
 import { useState, useEffect, type ReactNode } from 'react'
-import { getAuthToken, setAuthToken, api, AuthError } from '../api/client'
+import { setAuthToken, api, AuthError } from '../api/client'
 import { KeyRound } from 'lucide-react'
 
 interface AuthGateProps {
