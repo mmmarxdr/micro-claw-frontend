@@ -8,7 +8,6 @@ import {
   Zap,
 } from 'lucide-react'
 import { setupApi, type ProviderInfo, type ModelInfo } from '../api/setup'
-import { setAuthToken } from '../api/client'
 import { useSetup } from '../contexts/SetupContext'
 
 // ─── Step indicator ───────────────────────────────────────────────────────────
@@ -446,10 +445,9 @@ function DoneStep({ providerId, model, apiKey, baseUrl }: DoneStepProps) {
         model,
         base_url: baseUrl || undefined,
       })
-      .then((res) => {
-        // Save token to localStorage so api.status() works immediately.
-        // Backend also sets an HttpOnly cookie as fallback.
-        if (res.auth_token) setAuthToken(res.auth_token)
+      .then(() => {
+        // Auth cookie is set automatically by the backend via Set-Cookie (HttpOnly).
+        // No localStorage needed — cookie is sent on all subsequent requests.
         setLoading(false)
         setDone(true)
       })
@@ -470,8 +468,7 @@ function DoneStep({ providerId, model, apiKey, baseUrl }: DoneStepProps) {
     setLoading(true)
     setupApi
       .complete({ provider: providerId, api_key: apiKey, model, base_url: baseUrl || undefined })
-      .then((res) => {
-        if (res.auth_token) setAuthToken(res.auth_token)
+      .then(() => {
         setLoading(false)
         setDone(true)
       })
