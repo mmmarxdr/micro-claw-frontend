@@ -211,7 +211,7 @@ function CredentialsStep({ providerId, providerInfo, onComplete, onBack }: Crede
   const [state, setState] = useState<CredentialsState>({
     apiKey: '',
     model: models[0]?.id ?? '',
-    baseUrl: providerInfo?.default_base_url ?? 'http://localhost:11434',
+    baseUrl: providerInfo?.default_base_url ?? '',
     showKey: false,
     validating: false,
     validationStatus: 'idle',
