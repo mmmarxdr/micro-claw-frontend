@@ -1,6 +1,15 @@
 import { z } from 'zod'
+import { MASKED_REGEX } from '../lib/mask'
 
-const MASKED = '••••••••'
+export { MASKED_REGEX }
+
+export const PROVIDER_NAMES = ['anthropic', 'openai', 'gemini', 'openrouter', 'ollama'] as const
+export type ProviderName = typeof PROVIDER_NAMES[number]
+
+const providerCredsSchema = z.object({
+  api_key: z.string().default(''),
+  base_url: z.string().default(''),
+})
 
 export const configSchema = z.object({
   agent: z.object({
@@ -11,14 +20,24 @@ export const configSchema = z.object({
     history_length: z.number().int().min(1).max(100),
     memory_results: z.number().int().min(0).optional(),
   }),
-  provider: z.object({
-    type: z.enum(['openrouter', 'anthropic', 'openai', 'ollama', 'gemini']),
-    model: z.string().min(1, 'Model is required'),
-    api_key: z.string(),    // may be masked — handled on submit
-    base_url: z.string().optional(),
-    timeout: z.any().optional(),
-    max_retries: z.number().int().min(0).optional(),
-    stream: z.boolean().optional(),
+  providers: z.object({
+    anthropic:  providerCredsSchema,
+    openai:     providerCredsSchema,
+    gemini:     providerCredsSchema,
+    openrouter: providerCredsSchema,
+    ollama:     providerCredsSchema,
+  }).default({
+    anthropic:  { api_key: '', base_url: '' },
+    openai:     { api_key: '', base_url: '' },
+    gemini:     { api_key: '', base_url: '' },
+    openrouter: { api_key: '', base_url: '' },
+    ollama:     { api_key: '', base_url: '' },
+  }),
+  models: z.object({
+    default: z.object({
+      provider: z.enum(PROVIDER_NAMES),
+      model: z.string().min(1, 'Model is required'),
+    }),
   }),
   // Flat channel config (not nested channels.telegram)
   channel: z.object({
@@ -78,10 +97,8 @@ export const configSchema = z.object({
 
 export type ConfigFormData = z.infer<typeof configSchema>
 
-export const MASKED_VALUE = MASKED
-
 // Static fallback when /api/models is unavailable.
-export const KNOWN_MODELS: Record<string, string[]> = {
+export const KNOWN_MODELS: Record<ProviderName, string[]> = {
   openrouter: ['openrouter/auto', 'google/gemini-2.0-flash-001', 'anthropic/claude-sonnet-4'],
   anthropic:  ['claude-sonnet-4-6', 'claude-opus-4-6', 'claude-haiku-4-5'],
   openai:     ['gpt-4o', 'gpt-4o-mini', 'o3-mini'],
@@ -91,7 +108,14 @@ export const KNOWN_MODELS: Record<string, string[]> = {
 
 export const DEFAULT_CONFIG: ConfigFormData = {
   agent: { name: 'MicroAgent', personality: '', max_iterations: 10, max_tokens_per_turn: 4096, history_length: 20, memory_results: 5 },
-  provider: { type: 'openrouter', model: 'openrouter/auto', api_key: '', base_url: '', timeout: 60, max_retries: 3, stream: true },
+  providers: {
+    anthropic:  { api_key: '', base_url: '' },
+    openai:     { api_key: '', base_url: '' },
+    gemini:     { api_key: '', base_url: '' },
+    openrouter: { api_key: '', base_url: '' },
+    ollama:     { api_key: '', base_url: 'http://localhost:11434' },
+  },
+  models: { default: { provider: 'openrouter', model: 'anthropic/claude-haiku-4.5' } },
   channel: { type: 'cli', token: '', allowed_users: [] },
   tools: {
     shell: { enabled: true, allow_all: false, allowed_commands: [], working_dir: '' },
