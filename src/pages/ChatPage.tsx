@@ -4,6 +4,7 @@ import { useWebSocket } from '../hooks/useWebSocket'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { StatusBar } from '../components/chat/StatusBar'
+import { ThinkingBlock } from '../components/chat/ThinkingBlock'
 import { cn } from '../lib/utils'
 import { Markdown } from '../components/chat/Markdown'
 import { api } from '../api/client'
@@ -40,7 +41,7 @@ function truncateInput(input: string, maxLen: number): string {
     if (parsed.path)    return parsed.path.length > maxLen    ? parsed.path.slice(0, maxLen) + '…'    : parsed.path
     const firstVal = Object.values(parsed)[0]
     if (typeof firstVal === 'string') return firstVal.length > maxLen ? firstVal.slice(0, maxLen) + '…' : firstVal
-  } catch {}
+  } catch { /* ignore JSON parse errors — fall through to truncation */ }
   return input.length > maxLen ? input.slice(0, maxLen) + '…' : input
 }
 
@@ -299,6 +300,12 @@ export function ChatPage() {
   const [isUploading, setIsUploading] = useState(false)
   const [filesDrawerOpen, setFilesDrawerOpen] = useState(false)
 
+  // Reasoning state (ThinkingBlock)
+  const [reasoningBuffer, setReasoningBuffer] = useState('')
+  const [hasTextStarted, setHasTextStarted] = useState(false)
+  const [thinkingStartedAt, setThinkingStartedAt] = useState<Date | undefined>(undefined)
+  const [textStartedAt, setTextStartedAt] = useState<Date | undefined>(undefined)
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -329,6 +336,19 @@ export function ChatPage() {
     if (msg.type === 'turn_start') {
       setTurnStatus({ active: true, startTime: Date.now(), elapsedMs: 0, inputTokens: 0, outputTokens: 0, activity: 'Starting...', iteration: 0 })
       setIsWaiting(true)
+      // Reset reasoning state for new turn
+      setReasoningBuffer('')
+      setHasTextStarted(false)
+      setThinkingStartedAt(undefined)
+      setTextStartedAt(undefined)
+    }
+
+    if (msg.type === 'reasoning_token') {
+      const data = (msg as unknown as { data?: string }).data ?? (msg as unknown as { text?: string }).text ?? ''
+      setReasoningBuffer(prev => {
+        if (!prev) setThinkingStartedAt(new Date())
+        return prev + data
+      })
     }
 
     if (msg.type === 'thinking') {
@@ -384,6 +404,11 @@ export function ChatPage() {
     }
 
     if (msg.type === 'token') {
+      // Mark that text content has started (triggers ThinkingBlock auto-collapse)
+      setHasTextStarted(prev => {
+        if (!prev) setTextStartedAt(new Date())
+        return true
+      })
       setMessages(prev => {
         const last = prev[prev.length - 1]
         if (last?.role === 'assistant' && last.isStreaming) {
@@ -546,6 +571,17 @@ export function ChatPage() {
         )}
 
         {messages.map(msg => <MessageRow key={msg.id} msg={msg} />)}
+        {reasoningBuffer && (
+          <div className="px-4">
+            <ThinkingBlock
+              reasoning={reasoningBuffer}
+              isStreaming={!hasTextStarted}
+              hasTextStarted={hasTextStarted}
+              thinkingStartedAt={thinkingStartedAt}
+              textStartedAt={textStartedAt}
+            />
+          </div>
+        )}
         {isTyping && <TypingIndicator />}
         <div ref={messagesEndRef} />
       </div>

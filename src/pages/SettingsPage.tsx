@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
-import type { ModelInfo } from '../api/client'
-import { configSchema, DEFAULT_CONFIG, KNOWN_MODELS, MASKED_REGEX, PROVIDER_NAMES } from '../schemas/config'
+import { configSchema, DEFAULT_CONFIG, MASKED_REGEX, PROVIDER_NAMES } from '../schemas/config'
 import type { ConfigFormData, ProviderName } from '../schemas/config'
+import { useProviderModels } from '../hooks/useProviderModels'
+import { ModelPicker } from '../components/provider/ModelPicker'
 import { stripMaskedKeys } from '../lib/mask'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
@@ -97,35 +98,8 @@ export function SettingsPage() {
   const activeProviderKey = watch(`providers.${activeProvider}.api_key`)
   const activeChannel = watch('channel.type')
   const shellAllowAll = watch('tools.shell.allow_all')
-  const currentModel = watch('models.default.model')
 
-  const { data: remoteModels } = useQuery<ModelInfo[]>({
-    queryKey: ['models'],
-    queryFn: api.models,
-    staleTime: 5 * 60_000,
-    retry: 1,
-  })
-
-  const [modelFilter, setModelFilter] = useState('')
-
-  const modelOptions = useMemo(() => {
-    let base: ModelInfo[]
-    if (remoteModels && remoteModels.length > 0 && activeProvider === 'openrouter') {
-      const lf = modelFilter.toLowerCase()
-      base = remoteModels
-        .filter(m => !lf || m.id.toLowerCase().includes(lf) || m.name.toLowerCase().includes(lf))
-        .slice(0, 50)
-    } else {
-      base = (KNOWN_MODELS[activeProvider] ?? []).map(id => ({
-        id, name: id, context_length: 0, prompt_cost: 0, completion_cost: 0, free: false,
-      }))
-    }
-    // Inject current model if not in the list (FR-33 / AS-22)
-    if (currentModel && !base.find(m => m.id === currentModel)) {
-      return [{ id: currentModel, name: currentModel, context_length: 0, prompt_cost: 0, completion_cost: 0, free: false }, ...base]
-    }
-    return base
-  }, [remoteModels, activeProvider, modelFilter, currentModel])
+  const { data: providerModelsData, isLoading: modelsLoading, error: modelsError } = useProviderModels(activeProvider)
 
   function needsProviderWarning(): boolean {
     if (activeProvider === 'ollama') return false
@@ -270,30 +244,30 @@ export function SettingsPage() {
             </div>
 
             <FormField label="Model" error={errors.models?.default?.model?.message} required>
-              {activeProvider === 'openrouter' && remoteModels && remoteModels.length > 0 ? (
-                <div className="space-y-2">
-                  <Input
-                    value={modelFilter}
-                    onChange={e => setModelFilter(e.target.value)}
-                    placeholder="Search models..."
-                  />
-                  <Select aria-label="Model" {...register('models.default.model')}>
-                    {modelOptions.map(m => (
-                      <option key={m.id} value={m.id}>
-                        {m.name}{m.free ? ' (free)' : m.prompt_cost > 0 ? ` ($${m.prompt_cost}/M)` : ''}
-                      </option>
-                    ))}
-                  </Select>
-                  <p className="text-xs text-text-disabled">
-                    {remoteModels.length} models{modelFilter ? ` / ${modelOptions.length} shown` : ''}
-                  </p>
-                </div>
-              ) : (
-                <Select aria-label="Model" {...register('models.default.model')}>
-                  {modelOptions.map(m => (
-                    <option key={m.id} value={m.id}>{m.id}</option>
-                  ))}
-                </Select>
+              <Controller
+                name="models.default.model"
+                control={control}
+                render={({ field }) => {
+                  // Inject current model into list if not present (AS-22)
+                  const rawModels = providerModelsData?.models ?? []
+                  const modelList = field.value && !rawModels.find(m => m.id === field.value)
+                    ? [{ id: field.value, name: field.value, context_length: 0, prompt_cost: 0, completion_cost: 0, free: false }, ...rawModels]
+                    : rawModels
+                  return (
+                    <ModelPicker
+                      value={field.value}
+                      onChange={field.onChange}
+                      modelList={modelList}
+                      isLoading={modelsLoading}
+                      error={modelsError instanceof Error ? modelsError : null}
+                    />
+                  )
+                }}
+              />
+              {providerModelsData && (
+                <p className="text-xs text-text-disabled mt-1">
+                  {providerModelsData.models.length} models · source: {providerModelsData.source}
+                </p>
               )}
             </FormField>
 

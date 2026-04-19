@@ -7,7 +7,9 @@ import {
   Loader2,
   Zap,
 } from 'lucide-react'
-import { setupApi, type ProviderInfo, type ModelInfo } from '../api/setup'
+import { setupApi, type ProviderInfo } from '../api/setup'
+import { getProviderModels, type ModelInfo } from '../api/client'
+import { ModelPicker } from '../components/provider/ModelPicker'
 import { useSetup } from '../contexts/SetupContext'
 
 // ─── Step indicator ───────────────────────────────────────────────────────────
@@ -206,11 +208,19 @@ const OTHER_SENTINEL = '__other__'
 
 function CredentialsStep({ providerId, providerInfo, onComplete, onBack }: CredentialsStepProps) {
   const isOllama = providerId === 'ollama'
-  const models: ModelInfo[] = providerInfo?.models ?? []
+  // Catalog models from /api/setup/providers (static fallback)
+  const catalogModels: ModelInfo[] = (providerInfo?.models ?? []).map(m => ({
+    id: m.id,
+    name: m.display_name,
+    context_length: m.context_k * 1000,
+    prompt_cost: m.cost_in,
+    completion_cost: m.cost_out,
+    free: false,
+  }))
 
   const [state, setState] = useState<CredentialsState>({
     apiKey: '',
-    model: models[0]?.id ?? '',
+    model: catalogModels[0]?.id ?? '',
     baseUrl: providerInfo?.default_base_url ?? '',
     showKey: false,
     validating: false,
@@ -218,12 +228,19 @@ function CredentialsStep({ providerId, providerInfo, onComplete, onBack }: Crede
     validationError: '',
     skipped: false,
   })
-  const [modelDropdown, setModelDropdown] = useState(models[0]?.id ?? (isOllama ? '' : OTHER_SENTINEL))
+
+  // Dynamic models fetched after validate-key succeeds
+  const [dynamicModels, setDynamicModels] = useState<ModelInfo[] | null>(null)
+  const [dynamicModelsLoading, setDynamicModelsLoading] = useState(false)
+  const [dynamicModelsError, setDynamicModelsError] = useState<Error | null>(null)
+
+  // For Ollama / pre-validation: use classic text input
+  const [modelDropdown, setModelDropdown] = useState(catalogModels[0]?.id ?? (isOllama ? '' : OTHER_SENTINEL))
   const [customModel, setCustomModel] = useState('')
 
-  const effectiveModel = modelDropdown === OTHER_SENTINEL || isOllama
-    ? customModel
-    : modelDropdown
+  const effectiveModel = dynamicModels
+    ? state.model  // controlled by ModelPicker
+    : (modelDropdown === OTHER_SENTINEL || isOllama ? customModel : modelDropdown)
 
   const canContinue = state.validationStatus === 'success' || state.skipped
 
@@ -241,6 +258,24 @@ function CredentialsStep({ providerId, providerInfo, onComplete, onBack }: Crede
       })
       if (res.valid) {
         update({ validating: false, validationStatus: 'success' })
+        // Fetch dynamic models post-validation
+        if (!isOllama) {
+          setDynamicModelsLoading(true)
+          setDynamicModelsError(null)
+          try {
+            const result = await getProviderModels(providerId)
+            setDynamicModels(result.models)
+            // Pre-select first dynamic model if none selected
+            if (result.models.length > 0 && !state.model) {
+              update({ model: result.models[0].id })
+            }
+          } catch (err) {
+            setDynamicModelsError(err instanceof Error ? err : new Error('Failed to load models'))
+            // Fall back to catalog — dynamicModels stays null
+          } finally {
+            setDynamicModelsLoading(false)
+          }
+        }
       } else {
         update({ validating: false, validationStatus: 'error', validationError: res.error ?? 'Validation failed' })
       }
@@ -320,6 +355,15 @@ function CredentialsStep({ providerId, providerInfo, onComplete, onBack }: Crede
               placeholder="llama3, mistral, codestral..."
               className="w-full bg-transparent border border-border rounded-md px-3 py-2.5 text-sm text-text-primary placeholder:text-text-disabled focus:outline-none focus:border-border-strong"
             />
+          ) : dynamicModels !== null ? (
+            // Post-validation: dynamic ModelPicker
+            <ModelPicker
+              value={state.model}
+              onChange={(id) => update({ model: id })}
+              modelList={dynamicModels}
+              isLoading={dynamicModelsLoading}
+              error={dynamicModelsError}
+            />
           ) : (
             <div className="space-y-2">
               <div className="relative">
@@ -331,9 +375,9 @@ function CredentialsStep({ providerId, providerInfo, onComplete, onBack }: Crede
                   }}
                   className="w-full appearance-none bg-transparent border border-border rounded-md px-3 py-2.5 pr-8 text-sm text-text-primary focus:outline-none focus:border-border-strong [&>option]:bg-[#111111]"
                 >
-                  {models.map((m) => (
+                  {catalogModels.map((m) => (
                     <option key={m.id} value={m.id}>
-                      {m.display_name}
+                      {m.name}
                     </option>
                   ))}
                   <option value={OTHER_SENTINEL}>Other...</option>

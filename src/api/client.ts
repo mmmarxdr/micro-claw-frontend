@@ -105,6 +105,34 @@ export interface ModelInfo {
   free: boolean
 }
 
+export interface ProviderModelsResponse {
+  models: ModelInfo[]
+  source: 'live' | 'cache' | 'cache-stale' | 'fallback'
+  cached_at: string | null
+}
+
+export interface GetProviderModelsOptions {
+  refresh?: boolean
+}
+
+export async function getProviderModels(
+  provider: string,
+  opts?: GetProviderModelsOptions
+): Promise<ProviderModelsResponse> {
+  const url = opts?.refresh
+    ? `/api/providers/${encodeURIComponent(provider)}/models?refresh=true`
+    : `/api/providers/${encodeURIComponent(provider)}/models`
+  const res = await fetch(url, {
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
+    throw new Error(err.error ?? `HTTP ${res.status}`)
+  }
+  return res.json()
+}
+
 export interface MCPServer {
   name: string
   transport: 'stdio' | 'http'

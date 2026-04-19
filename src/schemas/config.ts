@@ -91,15 +91,6 @@ export const configSchema = z.object({
 
 export type ConfigFormData = z.infer<typeof configSchema>
 
-// Static fallback when /api/models is unavailable.
-export const KNOWN_MODELS: Record<ProviderName, string[]> = {
-  openrouter: ['openrouter/auto', 'google/gemini-2.0-flash-001', 'anthropic/claude-sonnet-4'],
-  anthropic:  ['claude-sonnet-4-6', 'claude-opus-4-6', 'claude-haiku-4-5'],
-  openai:     ['gpt-4o', 'gpt-4o-mini', 'o3-mini'],
-  ollama:     ['llama3.2', 'mistral', 'qwen2.5-coder'],
-  gemini:     ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'],
-}
-
 export const DEFAULT_CONFIG: ConfigFormData = {
   agent: { name: 'Daimon', personality: '', max_iterations: 10, max_tokens_per_turn: 4096, history_length: 20, memory_results: 5 },
   providers: {
