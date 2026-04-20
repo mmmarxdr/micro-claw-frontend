@@ -2,8 +2,35 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Theme tokens — dark-first design ────────────────────────── */
-:root {
+/* ─────────────────────────────────────────────────────────────────
+   Liminal tokens — warm paper / warm near-black + single teal.
+   New "ink/paper" vocabulary lives alongside legacy --color-* vars
+   so chat can adopt Liminal while non-redesigned pages keep working.
+   ───────────────────────────────────────────────────────────────── */
+
+:root,
+:root[data-theme='dark'] {
+  /* Liminal — dark (default) */
+  --bg:           #141210;
+  --bg-elev:      #1c1a17;
+  --bg-deep:      #0e0d0b;
+  --bg-sidebar:   #100f0d;
+  --bg-code:      #0a0908;
+  --ink:          #eae5d8;
+  --ink-soft:     #c2bca9;
+  --ink-muted:    #7a7465;
+  --ink-faint:    #443e33;
+  --line:         rgba(234, 229, 216, 0.08);
+  --line-strong:  rgba(234, 229, 216, 0.16);
+  --accent:       #5dbfa7;
+  --accent-soft:  rgba(93, 191, 167, 0.10);
+  --accent-strong:#8ed9c3;
+  --green:        #7aba8a;
+  --amber:        #e3b67a;
+  --red:          #e38775;
+  --user:         #c2bca9;
+
+  /* Legacy tokens (kept dark-only until pages migrate) */
   --color-background:          #0a0a0a;
   --color-surface:             #111111;
   --color-hover-surface:       #1a1a1a;
@@ -17,6 +44,41 @@
   --color-accent-light-border: rgba(16, 185, 129, 0.2);
 }
 
+:root[data-theme='light'] {
+  /* Liminal — light */
+  --bg:           #f8f6f1;
+  --bg-elev:      #ffffff;
+  --bg-deep:      #efece5;
+  --bg-sidebar:   #f3f0e9;
+  --bg-code:      #1a1813;
+  --ink:          #1a1813;
+  --ink-soft:     #3d3a32;
+  --ink-muted:    #8a8275;
+  --ink-faint:    #b5ad9d;
+  --line:         rgba(26, 24, 19, 0.08);
+  --line-strong:  rgba(26, 24, 19, 0.15);
+  --accent:       #2d8573;
+  --accent-soft:  rgba(45, 133, 115, 0.08);
+  --accent-strong:#1f6357;
+  --green:        #4a8a5a;
+  --amber:        #b87a2e;
+  --red:          #b0432e;
+  --user:         #3d3a32;
+
+  /* Legacy tokens — basic light variants so non-redesigned pages don't break */
+  --color-background:          #f8f6f1;
+  --color-surface:             #ffffff;
+  --color-hover-surface:       #efece5;
+  --color-logs-alt-row:        #faf6ee;
+  --color-border:              rgba(26, 24, 19, 0.12);
+  --color-border-strong:       rgba(26, 24, 19, 0.2);
+  --color-text-primary:        #1a1813;
+  --color-text-secondary:      #5a5448;
+  --color-text-disabled:       #8a8275;
+  --color-accent-light:        rgba(45, 133, 115, 0.1);
+  --color-accent-light-border: rgba(45, 133, 115, 0.25);
+}
+
 @layer base {
   body {
     @apply bg-background text-text-primary font-sans;
@@ -28,5 +90,64 @@
     .animate-bounce {
       animation: none;
     }
+
+    /* Liminal-specific motion */
+    .liminal-breathe,
+    .liminal-cursor {
+      animation: none !important;
+    }
   }
+
+  /* Liminal — wordmark "breathing" dot */
+  @keyframes liminal-breathe {
+    0%, 100% { opacity: 1;   transform: scale(1); }
+    50%      { opacity: 0.55; transform: scale(0.85); }
+  }
+  .liminal-breathe {
+    animation: liminal-breathe 2.6s ease-in-out infinite;
+    transform-origin: center;
+  }
+
+  /* Liminal — streaming cursor blink */
+  @keyframes liminal-cursor {
+    0%, 60% { opacity: 1; }
+    61%, 100% { opacity: 0; }
+  }
+  .liminal-cursor {
+    display: inline-block;
+    width: 0.55em;
+    height: 1em;
+    background: var(--accent);
+    vertical-align: text-bottom;
+    margin-left: 2px;
+    animation: liminal-cursor 1s steps(1) infinite;
+  }
+
+  /* Liminal input — italic serif placeholder */
+  .liminal-input::placeholder {
+    font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
+    font-style: italic;
+    color: var(--ink-muted);
+    opacity: 1;
+  }
+
+  /* Memory — indexing badge pulse + file-type progress bar */
+  @keyframes mem-breathe {
+    0%, 100% { opacity: 1;   transform: scale(1); }
+    50%      { opacity: 0.4; transform: scale(0.7); }
+  }
+  .mem-breathe {
+    animation: mem-breathe 1.1s ease-in-out infinite;
+    transform-origin: center;
+  }
+
+  @keyframes mem-index {
+    0%   { transform: scaleX(0); transform-origin: left; }
+    50%  { transform: scaleX(1); transform-origin: left; }
+    100% { transform: scaleX(0); transform-origin: right; }
+  }
+  .mem-index {
+    animation: mem-index 1.6s linear infinite;
+  }
+
 }

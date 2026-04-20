@@ -1,11 +1,40 @@
 import type { Config } from 'tailwindcss'
 
 export default {
-  darkMode: 'class',
+  darkMode: ['selector', '[data-theme="dark"]'],
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
+        // ── Liminal palette (theme-aware via CSS vars) ──────────
+        paper:        'var(--bg)',
+        'paper-elev': 'var(--bg-elev)',
+        'paper-deep': 'var(--bg-deep)',
+        'paper-side': 'var(--bg-sidebar)',
+        'paper-code': 'var(--bg-code)',
+        ink: {
+          DEFAULT: 'var(--ink)',
+          soft:    'var(--ink-soft)',
+          muted:   'var(--ink-muted)',
+          faint:   'var(--ink-faint)',
+        },
+        line: {
+          DEFAULT: 'var(--line)',
+          strong:  'var(--line-strong)',
+        },
+        teal: {
+          DEFAULT: 'var(--accent)',
+          soft:    'var(--accent-soft)',
+          strong:  'var(--accent-strong)',
+        },
+        signal: {
+          green: 'var(--green)',
+          amber: 'var(--amber)',
+          red:   'var(--red)',
+        },
+        user: 'var(--user)',
+
+        // ── Legacy palette (for non-redesigned pages) ────────────
         background: 'var(--color-background)',
         accent: {
           DEFAULT: '#10b981',
@@ -31,8 +60,9 @@ export default {
         error:   { DEFAULT: '#ef4444', light: 'rgba(239, 68, 68, 0.1)' },
       },
       fontFamily: {
-        sans: ['-apple-system', 'BlinkMacSystemFont', "'Segoe UI'", 'system-ui', 'sans-serif'],
-        mono: ["'JetBrains Mono'", "'SF Mono'", "'Fira Code'", "'Cascadia Code'", 'monospace'],
+        sans:  ["'Inter'", 'system-ui', '-apple-system', 'BlinkMacSystemFont', "'Segoe UI'", 'sans-serif'],
+        serif: ["'Fraunces'", 'Georgia', "'Times New Roman'", 'serif'],
+        mono:  ["'JetBrains Mono'", 'ui-monospace', "'SF Mono'", "'Fira Code'", "'Cascadia Code'", 'monospace'],
       },
       borderRadius: {
         sm:  '3px',
