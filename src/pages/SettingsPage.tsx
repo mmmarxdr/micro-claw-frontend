@@ -168,7 +168,27 @@ export function SettingsPage() {
           <p className="text-sm text-text-secondary mt-0.5">Configure the agent without editing YAML.</p>
         </div>
         <Button
-          onClick={handleSubmit(onSubmit)}
+          onClick={handleSubmit(onSubmit, (errs) => {
+            // Surface the first validation error so save failures aren't silent.
+            const firstPath = Object.keys(errs)[0]
+            const firstMsg = (() => {
+              const node = errs as Record<string, unknown>
+              const stack: Array<unknown> = [node[firstPath]]
+              while (stack.length) {
+                const cur = stack.pop()
+                if (cur && typeof cur === 'object') {
+                  const m = (cur as { message?: unknown }).message
+                  if (typeof m === 'string') return m
+                  Object.values(cur as Record<string, unknown>).forEach((v) => stack.push(v))
+                }
+              }
+              return 'invalid value'
+            })()
+            setToast({
+              message: `Cannot save — ${firstPath}: ${firstMsg}`,
+              variant: 'error',
+            })
+          })}
           disabled={isPending || !isDirty}
         >
           {isPending ? 'Saving...' : 'Save'}

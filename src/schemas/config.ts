@@ -35,7 +35,11 @@ export const configSchema = z.object({
   }),
   // Flat channel config (not nested channels.telegram)
   channel: z.object({
-    type: z.enum(['cli', 'telegram', 'discord']),
+    // Coerce empty/null to 'cli' so legacy/partial configs don't fail validation silently.
+    type: z.preprocess(
+      (v) => (v === '' || v == null ? 'cli' : v),
+      z.enum(['cli', 'telegram', 'discord']),
+    ),
     token: z.string().optional(),
     allowed_users: z.array(z.any()).optional(),
   }),
