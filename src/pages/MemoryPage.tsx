@@ -1,267 +1,159 @@
-import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useMemory } from '../hooks/useApi'
-import { api } from '../api/client'
-import { Badge } from '../components/ui/Badge'
-import { Button } from '../components/ui/Button'
-import { Toast } from '../components/ui/Toast'
-import { FormField } from '../components/ui/FormField'
-import { TagInput } from '../components/ui/TagInput'
-import { Brain, ExternalLink, Plus, Trash2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { MEMORIES } from '../design/memoryMocks'
+import type { Cluster } from '../design/memoryMocks'
+import { MemoryPreamble, MemoryEmpty } from '../components/liminal/memory/MemoryPreamble'
+import { MemoryTabs, type MemoryTab } from '../components/liminal/memory/MemoryTabs'
+import { KNOWLEDGE } from '../design/memoryMocks'
+import {
+  MemoryToolbar,
+  type MemoryFilter,
+  type MemorySort,
+} from '../components/liminal/memory/MemoryToolbar'
+import { MemoryCard, type Density } from '../components/liminal/memory/MemoryCard'
+import { ClusterHeader } from '../components/liminal/memory/ClusterHeader'
+import { KnowledgeView } from '../components/liminal/memory/KnowledgeView'
 
-function relativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
-  const m = Math.floor(diff / 60000)
-  if (m < 1) return 'just now'
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  return `${Math.floor(h / 24)}d ago`
-}
+const CONFIDENCE_ORDER = { certain: 0, inferred: 1, assumed: 2 } as const
 
-function SkeletonEntry() {
-  return (
-    <div className="border-b border-border py-4 space-y-2">
-      <div className="h-4 w-3/4 animate-pulse bg-hover-surface rounded" />
-      <div className="h-4 w-full animate-pulse bg-hover-surface rounded" />
-      <div className="flex gap-2 pt-1">
-        <div className="h-5 w-14 animate-pulse bg-hover-surface rounded-sm" />
-        <div className="h-5 w-10 animate-pulse bg-hover-surface rounded-sm" />
-      </div>
-    </div>
-  )
-}
-
+/**
+ * Memory — long-term memories + ingested knowledge. Visual rebuild backed
+ * by the Claude Design handoff fixture (src/design/memoryMocks.ts). The
+ * backend currently exposes a thinner memory schema; wiring live data
+ * (confidence, cluster, source-conv refs) is a follow-up.
+ */
 export function MemoryPage() {
-  const [inputValue, setInputValue] = useState('')
-  const [debouncedQuery, setDebouncedQuery] = useState('')
-  const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' } | null>(null)
-  const [isAdding, setIsAdding] = useState(false)
-  const [newContent, setNewContent] = useState('')
-  const [newTags, setNewTags] = useState<string[]>([])
-  const qc = useQueryClient()
+  const [tab, setTab] = useState<MemoryTab>('memory')
+  const [filter, setFilter] = useState<MemoryFilter>('all')
+  const [sort, setSort] = useState<MemorySort>('cluster')
+  const [query, setQuery] = useState('')
 
-  // Debounce 300ms
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedQuery(inputValue)
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [inputValue])
+  const density = 'normal' as Density
+  const showTrust = true
+  const editorial = true
 
-  const { data, isLoading, isError } = useMemory(debouncedQuery)
+  const counts = useMemo(
+    () => ({
+      total: MEMORIES.length,
+      certain:  MEMORIES.filter((m) => m.confidence === 'certain').length,
+      inferred: MEMORIES.filter((m) => m.confidence === 'inferred').length,
+      assumed:  MEMORIES.filter((m) => m.confidence === 'assumed').length,
+    }),
+    [],
+  )
 
-  const items = data?.items ?? []
-
-  const { mutate: clearMemory, isPending: isClearing } = useMutation({
-    mutationFn: api.deleteMemory,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['memory'] })
-      setToast({ message: 'Memory cleared.', variant: 'success' })
-    },
-    onError: () => setToast({ message: 'Failed to clear memory.', variant: 'error' }),
-  })
-
-  const { mutate: addEntry, isPending: isSubmitting } = useMutation({
-    mutationFn: () => api.postMemory(newContent.trim(), newTags),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['memory'] })
-      setNewContent('')
-      setNewTags([])
-      setIsAdding(false)
-      setToast({ message: 'Memory entry added.', variant: 'success' })
-    },
-    onError: () => setToast({ message: 'Failed to add entry.', variant: 'error' }),
-  })
-
-  const { mutate: deleteEntry } = useMutation({
-    mutationFn: (id: string) => api.deleteMemoryEntry(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['memory'] })
-      setToast({ message: 'Entry deleted.', variant: 'success' })
-    },
-    onError: () => setToast({ message: 'Failed to delete entry.', variant: 'error' }),
-  })
-
-  const handleDeleteEntry = (id: string) => {
-    if (window.confirm('Delete this memory entry?')) {
-      deleteEntry(id)
+  const sortedItems = useMemo(() => {
+    let items = MEMORIES
+    if (filter !== 'all') items = items.filter((m) => m.confidence === filter)
+    const q = query.trim().toLowerCase()
+    if (q) {
+      items = items.filter(
+        (m) =>
+          m.content.toLowerCase().includes(q) ||
+          m.tags.some((t) => t.toLowerCase().includes(q)),
+      )
     }
-  }
+    const sorted = [...items].sort((a, b) => {
+      if (sort === 'confidence') {
+        return CONFIDENCE_ORDER[a.confidence] - CONFIDENCE_ORDER[b.confidence]
+      }
+      if (sort === 'confirmations') return b.confirmedCount - a.confirmedCount
+      if (sort === 'cluster') return a.cluster.localeCompare(b.cluster)
+      return 0
+    })
+    return sorted
+  }, [filter, sort, query])
 
-  const handleClearAll = () => {
-    if (window.confirm('Clear all memory entries? This cannot be undone.')) {
-      clearMemory()
+  const groupedByCluster = useMemo(() => {
+    if (sort !== 'cluster') return null
+    const groups = new Map<Cluster, typeof sortedItems>()
+    for (const m of sortedItems) {
+      const bucket = groups.get(m.cluster) ?? []
+      bucket.push(m)
+      groups.set(m.cluster, bucket)
     }
-  }
+    return Array.from(groups.entries())
+  }, [sortedItems, sort])
 
-  const handleCancelAdd = () => {
-    setIsAdding(false)
-    setNewContent('')
-    setNewTags([])
-  }
+  const gridGap = density === 'dense' ? 8 : density === 'sparse' ? 16 : 12
 
   return (
-    <div className="px-6 md:px-8 py-6 md:py-8 max-w-[1200px] mx-auto">
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="text-lg font-semibold text-text-primary">Memory</h1>
-          <p className="text-sm text-text-secondary mt-1">Search and manage agent long-term memory entries.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setIsAdding(true)}
-            disabled={isAdding}
-          >
-            <Plus size={14} />
-            New entry
-          </Button>
-          {items.length > 0 && (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleClearAll}
-              disabled={isClearing}
-            >
-              {isClearing ? 'Clearing…' : 'Clear All'}
-            </Button>
-          )}
-        </div>
-      </div>
+    <div
+      className="font-sans flex flex-col min-w-0"
+      style={{ background: 'var(--bg)', color: 'var(--ink)' }}
+    >
+      {editorial && <MemoryPreamble counts={counts} />}
 
-      {/* Add entry form */}
-      {isAdding && (
-        <div className="mb-6 border border-border rounded-md p-5 bg-surface">
-          <div className="space-y-3">
-            <FormField label="Content" required>
-              <textarea
-                value={newContent}
-                onChange={e => setNewContent(e.target.value)}
-                rows={3}
-                placeholder="What should the agent remember?"
-                className="w-full bg-transparent border border-border rounded-md px-3 py-2 text-sm text-text-primary placeholder:text-text-disabled focus:outline-none focus:border-border-strong focus:ring-1 focus:ring-border-strong resize-none"
-              />
-            </FormField>
-            <FormField label="Tags" hint="Optional — press Enter to add.">
-              <TagInput value={newTags} onChange={setNewTags} placeholder="tag1, tag2…" />
-            </FormField>
-            <div className="flex justify-end gap-2 pt-1">
-              <Button variant="secondary" size="sm" onClick={handleCancelAdd}>
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => addEntry()}
-                disabled={!newContent.trim() || isSubmitting}
-              >
-                {isSubmitting ? 'Adding…' : 'Add entry'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Search input — underline style */}
-      <div className="mb-6">
-        <input
-          type="text"
-          placeholder="Search memory…"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          className="w-full max-w-md bg-transparent border-b border-border px-0 py-2 text-sm text-text-primary placeholder:text-text-disabled focus:outline-none focus:border-border-strong transition-colors"
+      <div style={{ padding: '0 48px', borderBottom: '1px solid var(--line)' }}>
+        <MemoryTabs
+          tab={tab}
+          setTab={setTab}
+          memoryCount={MEMORIES.length}
+          knowledgeCount={KNOWLEDGE.length}
         />
       </div>
 
-      {/* Loading */}
-      {isLoading && (
-        <div>
-          {Array.from({ length: 4 }).map((_, i) => (
-            <SkeletonEntry key={i} />
-          ))}
-        </div>
-      )}
-
-      {/* Error */}
-      {isError && (
-        <p className="text-sm text-error">Failed to load memory entries.</p>
-      )}
-
-      {/* Empty state */}
-      {!isLoading && !isError && items.length === 0 && (
-        <div className="text-center py-16">
-          <Brain size={36} className="mx-auto mb-3 text-text-disabled" />
-          <p className="text-sm text-text-secondary">
-            {debouncedQuery
-              ? `No results for "${debouncedQuery}".`
-              : 'No memory entries yet.'}
-          </p>
-        </div>
-      )}
-
-      {/* Results */}
-      {!isLoading && !isError && items.length > 0 && (
-        <div>
-          {items.map((entry) => (
-            <div
-              key={entry.id}
-              className="border-b border-border py-4"
-            >
-              {/* Content */}
-              <p className="text-sm text-text-primary leading-relaxed mb-3">
-                {entry.content}
-              </p>
-
-              {/* Tags */}
-              {entry.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mb-3">
-                  {entry.tags.map((tag) => (
-                    <Badge key={tag} variant="accent">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-
-              {/* Footer */}
-              <div className="flex items-center justify-between pt-1">
-                <span className="text-xs text-text-disabled font-mono">
-                  {relativeTime(entry.created_at)}
-                </span>
-                <div className="flex items-center gap-3">
-                  {entry.source_conversation_id && (
-                    <Link
-                      to={`/conversations/${entry.source_conversation_id}`}
-                      className="inline-flex items-center gap-1 text-xs text-accent hover:text-accent-hover transition-colors font-medium"
-                    >
-                      <ExternalLink size={11} />
-                      Conversation
-                    </Link>
-                  )}
-                  <button
-                    onClick={() => handleDeleteEntry(entry.id)}
-                    className="inline-flex items-center gap-1 text-xs text-text-disabled hover:text-error transition-colors"
-                    title="Delete entry"
+      <div
+        className="mx-auto w-full"
+        style={{ maxWidth: 1100, padding: '24px 48px 80px' }}
+      >
+        {tab === 'memory' ? (
+          <>
+            <MemoryToolbar
+              filter={filter}
+              setFilter={setFilter}
+              sort={sort}
+              setSort={setSort}
+              query={query}
+              setQuery={setQuery}
+              counts={counts}
+            />
+            {sortedItems.length === 0 ? (
+              <MemoryEmpty query={query} />
+            ) : groupedByCluster ? (
+              groupedByCluster.map(([cluster, group]) => (
+                <div key={cluster}>
+                  <ClusterHeader cluster={cluster} count={group.length} />
+                  <div
+                    className="grid"
+                    style={{
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+                      gap: gridGap,
+                    }}
                   >
-                    <Trash2 size={12} />
-                  </button>
+                    {group.map((m) => (
+                      <MemoryCard
+                        key={m.id}
+                        mem={m}
+                        density={density}
+                        showTrust={showTrust}
+                      />
+                    ))}
+                  </div>
                 </div>
+              ))
+            ) : (
+              <div
+                className="grid"
+                style={{
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+                  gap: gridGap,
+                }}
+              >
+                {sortedItems.map((m) => (
+                  <MemoryCard
+                    key={m.id}
+                    mem={m}
+                    density={density}
+                    showTrust={showTrust}
+                  />
+                ))}
               </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Toast */}
-      {toast && (
-        <Toast
-          message={toast.message}
-          variant={toast.variant}
-          onDismiss={() => setToast(null)}
-        />
-      )}
+            )}
+          </>
+        ) : (
+          <KnowledgeView density={density} editorial={editorial} />
+        )}
+      </div>
     </div>
   )
 }
