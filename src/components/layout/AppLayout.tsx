@@ -1,39 +1,60 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Menu } from 'lucide-react'
-import { Sidebar } from './Sidebar'
-import { SidebarProvider } from '../../contexts/SidebarContext'
+import { LiminalSidebar } from '../liminal/LiminalSidebar'
+import { LiminalCmd } from '../liminal/LiminalCmd'
+import { useTheme } from '../../contexts/ThemeContext'
 
 export function AppLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [cmdOpen, setCmdOpen] = useState(false)
+  const { toggleTheme } = useTheme()
+
+  // Global ⌘K / Ctrl K — open command palette.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setCmdOpen((v) => !v)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen">
-        {/* Desktop/tablet sidebar — hidden below md via Sidebar's own logic */}
-        <Sidebar drawerOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
+    <div className="flex min-h-screen bg-paper">
+      <LiminalSidebar
+        drawerOpen={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        onSummon={() => setCmdOpen(true)}
+      />
 
-        {/* Overlay backdrop — only rendered on mobile when drawer is open */}
-        {drawerOpen && (
-          <div
-            className="fixed inset-0 bg-black/40 z-40 md:hidden"
-            onClick={() => setDrawerOpen(false)}
-            aria-hidden="true"
-          />
-        )}
+      {drawerOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 md:hidden"
+          onClick={() => setDrawerOpen(false)}
+          aria-hidden="true"
+        />
+      )}
 
-        <main className="flex-1 bg-background overflow-y-auto min-w-0">
-          {/* Hamburger button — only visible below md */}
-          <button
-            onClick={() => setDrawerOpen(true)}
-            aria-label="Open navigation"
-            className="flex md:hidden items-center justify-center h-9 w-9 m-2 rounded-md text-text-secondary hover:bg-hover-surface hover:text-text-primary transition-colors"
-          >
-            <Menu size={18} strokeWidth={1.75} />
-          </button>
-          <Outlet />
-        </main>
-      </div>
-    </SidebarProvider>
+      <main className="flex-1 overflow-y-auto min-w-0" style={{ background: 'var(--bg)' }}>
+        <button
+          onClick={() => setDrawerOpen(true)}
+          aria-label="Open navigation"
+          className="flex md:hidden items-center justify-center h-9 w-9 m-2 rounded-md transition-colors"
+          style={{ color: 'var(--ink-muted)' }}
+        >
+          <Menu size={18} strokeWidth={1.75} />
+        </button>
+        <Outlet />
+      </main>
+
+      <LiminalCmd
+        open={cmdOpen}
+        onClose={() => setCmdOpen(false)}
+        onToggleTheme={toggleTheme}
+      />
+    </div>
   )
 }

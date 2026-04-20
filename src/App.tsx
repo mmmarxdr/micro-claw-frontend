@@ -15,6 +15,7 @@ import { SettingsPage } from './pages/SettingsPage'
 import { ToolsPage } from './pages/ToolsPage'
 import { LogsPage } from './pages/LogsPage'
 import { MCPPage } from './pages/MCPPage'
+import { DesignPage } from './pages/DesignPage'
 import { useMetricsSocket } from './hooks/useMetricsSocket'
 
 const queryClient = new QueryClient({
@@ -33,33 +34,46 @@ function MetricsSyncSocket() {
   return null
 }
 
+function AuthedApp() {
+  return (
+    <SetupProvider>
+      <SetupGuard>
+        <AuthGate>
+          <MetricsSyncSocket />
+          <Routes>
+            <Route element={<AppLayout />}>
+              <Route index element={<OverviewPage />} />
+              <Route path="metrics" element={<MetricsPage />} />
+              <Route path="conversations" element={<ConversationsPage />} />
+              <Route path="conversations/:id" element={<ConversationDetailPage />} />
+              <Route path="memory" element={<MemoryPage />} />
+              <Route path="chat" element={<ChatPage />} />
+              <Route path="tools" element={<ToolsPage />} />
+              <Route path="mcp" element={<MCPPage />} />
+              <Route path="settings" element={<SettingsPage />} />
+              <Route path="logs" element={<LogsPage />} />
+            </Route>
+          </Routes>
+        </AuthGate>
+      </SetupGuard>
+    </SetupProvider>
+  )
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-      <SetupProvider>
-      <SetupGuard>
-      <AuthGate>
-      <BrowserRouter>
-        <MetricsSyncSocket />
-        <Routes>
-          <Route element={<AppLayout />}>
-            <Route index element={<OverviewPage />} />
-            <Route path="metrics" element={<MetricsPage />} />
-            <Route path="conversations" element={<ConversationsPage />} />
-            <Route path="conversations/:id" element={<ConversationDetailPage />} />
-            <Route path="memory" element={<MemoryPage />} />
-            <Route path="chat" element={<ChatPage />} />
-            <Route path="tools" element={<ToolsPage />} />
-            <Route path="mcp" element={<MCPPage />} />
-            <Route path="settings" element={<SettingsPage />} />
-            <Route path="logs" element={<LogsPage />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-      </AuthGate>
-      </SetupGuard>
-      </SetupProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Public preview — no auth, no setup required (visual validation only) */}
+            <Route element={<AppLayout />}>
+              <Route path="design" element={<DesignPage />} />
+            </Route>
+            {/* Authenticated app */}
+            <Route path="*" element={<AuthedApp />} />
+          </Routes>
+        </BrowserRouter>
       </ThemeProvider>
     </QueryClientProvider>
   )

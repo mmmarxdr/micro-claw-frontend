@@ -78,7 +78,7 @@ describe('ChatPage.reasoningStream', () => {
 
     // ThinkingBlock should auto-collapse (show "Thought for..." label)
     await waitFor(() => {
-      expect(screen.getByText(/thought for/i)).toBeInTheDocument()
+      expect(screen.getByText(/pondered for/i)).toBeInTheDocument()
     })
   })
 
@@ -111,7 +111,7 @@ describe('ChatPage.reasoningStream', () => {
     })
 
     // ThinkingBlock should NOT be present
-    expect(screen.queryByText(/thought for/i)).toBeNull()
-    expect(screen.queryByText(/thinking\.\.\./i)).toBeNull()
+    expect(screen.queryByText(/pondered for/i)).toBeNull()
+    expect(screen.queryByText(/pondering/i)).toBeNull()
   })
 })

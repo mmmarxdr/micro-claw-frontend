@@ -25,6 +25,10 @@ export interface ChatMessage {
   toolCall?: ToolCall
   isStreaming?: boolean
   attachments?: Attachment[]
+  /** Reasoning text baked into the first non-user message of a turn (so past turns keep their reasoning). */
+  reasoning?: string
+  reasoningStartedAt?: Date
+  reasoningEndedAt?: Date
 }
 
 export interface MediaMeta {

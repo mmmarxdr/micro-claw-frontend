@@ -84,7 +84,7 @@ describe('ChatPage.integration.thinkingBlock', () => {
 
     // After text starts, "Thought for..." label should appear.
     await waitFor(() => {
-      expect(screen.getByText(/thought for/i)).toBeInTheDocument()
+      expect(screen.getByText(/pondered for/i)).toBeInTheDocument()
     }, { timeout: 3000 })
 
     // Emit done frame.
@@ -98,10 +98,10 @@ describe('ChatPage.integration.thinkingBlock', () => {
     }, { timeout: 3000 })
 
     // ThinkingBlock "Thought for..." label should persist after done.
-    expect(screen.getByText(/thought for/i)).toBeInTheDocument()
+    expect(screen.getByText(/pondered for/i)).toBeInTheDocument()
 
     // ThinkingBlock should be toggleable (clickable to expand).
-    const summary = screen.getByText(/thought for/i)
+    const summary = screen.getByText(/pondered for/i)
     fireEvent.click(summary)
     // After clicking, the reasoning content should be visible again.
     await waitFor(() => {
@@ -123,7 +123,7 @@ describe('ChatPage.integration.thinkingBlock', () => {
       expect(screen.getByText(/direct answer/i)).toBeInTheDocument()
     }, { timeout: 3000 })
 
-    expect(screen.queryByText(/thought for/i)).toBeNull()
-    expect(screen.queryByText(/thinking\.\.\./i)).toBeNull()
+    expect(screen.queryByText(/pondered for/i)).toBeNull()
+    expect(screen.queryByText(/pondering/i)).toBeNull()
   })
 })
