@@ -12,10 +12,10 @@ export type Cluster =
   | 'projects'
   | 'relationships'
   | 'technical'
+  | 'general'
 
 export interface MemorySource {
   conv: string
-  msg: string
   date: string
 }
 
@@ -31,8 +31,8 @@ export interface Memory {
   confirmedCount: number
 }
 
-export type KnowledgeStatus = 'ready' | 'indexing'
-export type KnowledgeType = 'pdf' | 'markdown' | 'docx' | 'html' | 'zip'
+export type KnowledgeStatus = 'ready' | 'indexing' | 'empty'
+export type KnowledgeType = 'pdf' | 'markdown' | 'docx' | 'html' | 'zip' | 'plain'
 
 export interface KnowledgeDoc {
   id: string
@@ -58,7 +58,7 @@ export const MEMORIES: Memory[] = [
     content: 'Your name is Alex Rivera. You go by "Alex" professionally.',
     tags: ['name', 'identity'],
     confidence: 'certain',
-    source: { conv: 'Onboarding', msg: 'msg_004', date: '2026-01-08' },
+    source: { conv: 'Onboarding', date: '2026-01-08' },
     lastSeen: '3 weeks ago',
     confirmedCount: 8,
   },
@@ -70,7 +70,7 @@ export const MEMORIES: Memory[] = [
       'Senior staff engineer at Helix Labs. Focus on platform and developer experience.',
     tags: ['role', 'employer'],
     confidence: 'certain',
-    source: { conv: 'Onboarding', msg: 'msg_007', date: '2026-01-08' },
+    source: { conv: 'Onboarding', date: '2026-01-08' },
     lastSeen: '4 days ago',
     confirmedCount: 12,
   },
@@ -82,7 +82,7 @@ export const MEMORIES: Memory[] = [
       'Strongly prefers TypeScript over Python for new services. Willing to use Python only for ML code.',
     tags: ['language', 'stack'],
     confidence: 'certain',
-    source: { conv: 'Payment service anomalies', msg: 'msg_018', date: '2026-04-18' },
+    source: { conv: 'Payment service anomalies', date: '2026-04-18' },
     lastSeen: 'yesterday',
     confirmedCount: 6,
   },
@@ -94,7 +94,7 @@ export const MEMORIES: Memory[] = [
       'Dislikes em-dashes in written output. Prefers short parenthetical asides or a comma instead.',
     tags: ['writing', 'style'],
     confidence: 'certain',
-    source: { conv: 'Draft: launch post', msg: 'msg_042', date: '2026-03-22' },
+    source: { conv: 'Draft: launch post', date: '2026-03-22' },
     lastSeen: '5 days ago',
     confirmedCount: 3,
   },
@@ -106,7 +106,7 @@ export const MEMORIES: Memory[] = [
       'Reads in Spanish and English. Tends to code-switch to Spanish for emotional or creative work.',
     tags: ['language', 'communication'],
     confidence: 'inferred',
-    source: { conv: '4 conversations', msg: 'pattern', date: 'ongoing' },
+    source: { conv: '4 conversations', date: 'ongoing' },
     lastSeen: '2 days ago',
     confirmedCount: 14,
   },
@@ -118,7 +118,7 @@ export const MEMORIES: Memory[] = [
       'Working on a redesign of an internal AI assistant called "Daimon". The project has been ongoing since early April. Alex is particularly protective of the voice — anything that drifts toward generic AI-product tropes triggers immediate pushback. Keywords that work well: "editorial", "liminal", "voz interior". Keywords that don\u2019t: "sleek", "powerful", anything gradient-heavy.',
     tags: ['daimon', 'design', 'active'],
     confidence: 'certain',
-    source: { conv: 'Daimon redesign — v2', msg: 'msg_112', date: '2026-04-17' },
+    source: { conv: 'Daimon redesign — v2', date: '2026-04-17' },
     lastSeen: 'today',
     confirmedCount: 22,
   },
@@ -130,7 +130,7 @@ export const MEMORIES: Memory[] = [
       'Runs the payments service at Helix. Recent deploy (commit 2c1d9e7) refactored the Stripe webhook handler to async and kept the old 2s timeout. This caused a timeout cluster on 04-18 — Alex and I traced and patched it together. Outcome: conservative fix landed, no rollback needed.',
     tags: ['payments', 'resolved'],
     confidence: 'certain',
-    source: { conv: 'Payment service anomalies', msg: 'msg_071', date: '2026-04-18' },
+    source: { conv: 'Payment service anomalies', date: '2026-04-18' },
     lastSeen: 'yesterday',
     confirmedCount: 2,
   },
@@ -141,7 +141,7 @@ export const MEMORIES: Memory[] = [
     content: 'Has a partner named Mariana. They live in Mexico City.',
     tags: ['family', 'location'],
     confidence: 'inferred',
-    source: { conv: 'Weekend planning', msg: 'msg_009', date: '2026-02-14' },
+    source: { conv: 'Weekend planning', date: '2026-02-14' },
     lastSeen: '3 weeks ago',
     confirmedCount: 2,
   },
@@ -153,7 +153,7 @@ export const MEMORIES: Memory[] = [
       'Probably prefers dark mode for code editors but light mode for reading and design work.',
     tags: ['ui', 'preferences'],
     confidence: 'assumed',
-    source: { conv: 'IDE theme chat', msg: 'msg_023', date: '2026-03-01' },
+    source: { conv: 'IDE theme chat', date: '2026-03-01' },
     lastSeen: '6 weeks ago',
     confirmedCount: 1,
   },
@@ -165,7 +165,7 @@ export const MEMORIES: Memory[] = [
       'Uses a 16" MacBook Pro M3 as primary machine. Occasionally tests on a Linux workstation for backend work.',
     tags: ['hardware', 'environment'],
     confidence: 'certain',
-    source: { conv: 'Env setup', msg: 'msg_031', date: '2026-01-19' },
+    source: { conv: 'Env setup', date: '2026-01-19' },
     lastSeen: '2 weeks ago',
     confirmedCount: 4,
   },
@@ -177,7 +177,7 @@ export const MEMORIES: Memory[] = [
       'Prefers I ask fewer clarifying questions when the task is narrow (a bug fix, a copy edit) and more when the task is generative (a new design direction, a PR spec). Gets frustrated when I ask about preferences I should have remembered.',
     tags: ['interaction', 'meta'],
     confidence: 'certain',
-    source: { conv: '6 conversations', msg: 'pattern', date: 'ongoing' },
+    source: { conv: '6 conversations', date: 'ongoing' },
     lastSeen: '2 days ago',
     confirmedCount: 9,
   },
@@ -189,7 +189,7 @@ export const MEMORIES: Memory[] = [
       'The Helix monorepo uses pnpm workspaces, Turborepo, and Changesets for release management. Main branch is protected.',
     tags: ['tooling', 'helix'],
     confidence: 'certain',
-    source: { conv: 'Setup walkthrough', msg: 'msg_014', date: '2026-01-10' },
+    source: { conv: 'Setup walkthrough', date: '2026-01-10' },
     lastSeen: 'last week',
     confirmedCount: 5,
   },

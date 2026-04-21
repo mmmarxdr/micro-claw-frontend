@@ -2,7 +2,8 @@
 // Provides in-memory implementations of the real API and WebSocket interfaces.
 // Activated when VITE_MOCK === 'true'. Never imported in production builds.
 
-import type { AgentStatus, MetricsSnapshot, Conversation, ConversationSummary, MemoryEntry, MCPServer, MCPServerConfig, MCPTestResult, UploadResponse, MediaMeta } from './client'
+import type { AgentStatus, ApiKnowledgeDoc, MetricsSnapshot, Conversation, ConversationSummary, MemoryEntry, MCPServer, MCPServerConfig, MCPTestResult, UploadResponse, MediaMeta } from './client'
+import { uuid } from '../lib/uuid'
 import {
   seedStatus,
   seedMetrics,
@@ -131,15 +132,36 @@ export const mockApi = {
 
   postMemory: (content: string, tags: string[]): Promise<MemoryEntry> => {
     const entry: MemoryEntry = {
-      id:                     crypto.randomUUID(),
+      id:                     uuid(),
       content,
       tags,
+      cluster:                'general',
+      importance:             5,
+      access_count:           0,
       source_conversation_id: '',
       created_at:             new Date().toISOString(),
     }
     mockState.memory.unshift(entry)
     return delay({ ...entry })
   },
+
+  knowledge: (): Promise<{ items: ApiKnowledgeDoc[] }> => delay({ items: [] }),
+  deleteKnowledge: (_id: string): Promise<void> => delay(undefined as void),
+  uploadKnowledge: (file: File, title?: string): Promise<ApiKnowledgeDoc> =>
+    delay({
+      id: uuid(),
+      title: title || file.name,
+      mime: file.type,
+      kind_hint: 'plain',
+      sha256: '',
+      size: file.size,
+      chunk_count: 0,
+      token_count: 0,
+      access_count: 0,
+      status: 'indexing',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }),
 
   config: (): Promise<Record<string, unknown>> =>
     delay(JSON.parse(JSON.stringify(mockState.config))),

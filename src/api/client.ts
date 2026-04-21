@@ -86,8 +86,35 @@ export interface MemoryEntry {
   id: string
   content: string
   tags: string[]
+  type?: string
+  cluster: string
+  importance: number
+  access_count: number
+  last_accessed_at?: string
   source_conversation_id: string
+  source_conversation_title?: string
   created_at: string
+}
+
+// ApiKnowledgeDoc is the wire shape for a RAG-ingested document returned by
+// GET /api/knowledge. Mapped to the Liminal `KnowledgeDoc` type in the UI via
+// src/api/knowledge.ts.
+export interface ApiKnowledgeDoc {
+  id: string
+  title: string
+  mime?: string
+  kind_hint?: 'pdf' | 'markdown' | 'docx' | 'html' | 'zip' | 'plain'
+  sha256?: string
+  size?: number
+  chunk_count: number
+  token_count: number
+  page_count?: number | null
+  access_count: number
+  last_accessed_at?: string
+  summary?: string
+  status: 'ready' | 'indexing' | 'empty'
+  created_at: string
+  updated_at: string
 }
 
 export interface ToolInfo {
@@ -238,6 +265,26 @@ const _realApi = {
   deleteMemoryEntry: (id: string) => request<void>(`/memory/${id}`, { method: 'DELETE' }),
   postMemory: (content: string, tags: string[]) =>
     request<MemoryEntry>('/memory', { method: 'POST', body: JSON.stringify({ content, tags }) }),
+
+  knowledge: () => request<{ items: ApiKnowledgeDoc[] }>('/knowledge'),
+  deleteKnowledge: (id: string) =>
+    request<void>(`/knowledge/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  uploadKnowledge: async (file: File, title?: string): Promise<ApiKnowledgeDoc> => {
+    const form = new FormData()
+    form.append('file', file)
+    if (title) form.append('title', title)
+    const res = await fetch(`${BASE_URL}/knowledge`, {
+      method: 'POST',
+      credentials: 'include',
+      body: form,
+    })
+    if (!res.ok) {
+      if (res.status === 401) throw new AuthError('Unauthorized')
+      const err = await res.json().catch(() => ({ error: res.statusText }))
+      throw new Error(err.error ?? `HTTP ${res.status}`)
+    }
+    return res.json()
+  },
 
   config: () => request<Record<string, unknown>>('/config'),
   updateConfig: (config: Record<string, unknown>) =>

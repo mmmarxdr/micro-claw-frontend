@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react'
-import { MEMORIES } from '../design/memoryMocks'
-import type { Cluster } from '../design/memoryMocks'
+import { useEffect, useMemo, useState } from 'react'
+import type { Cluster, Memory } from '../design/memoryMocks'
+import { listMemories } from '../api/memory'
+import { useKnowledge } from '../api/knowledge'
 import { MemoryPreamble, MemoryEmpty } from '../components/liminal/memory/MemoryPreamble'
 import { MemoryTabs, type MemoryTab } from '../components/liminal/memory/MemoryTabs'
-import { KNOWLEDGE } from '../design/memoryMocks'
 import {
   MemoryToolbar,
   type MemoryFilter,
@@ -15,13 +15,48 @@ import { KnowledgeView } from '../components/liminal/memory/KnowledgeView'
 
 const CONFIDENCE_ORDER = { certain: 0, inferred: 1, assumed: 2 } as const
 
+interface MemoryState {
+  items: Memory[]
+  loading: boolean
+  error: string | null
+}
+
+function useMemories(): MemoryState {
+  const [state, setState] = useState<MemoryState>({
+    items: [],
+    loading: true,
+    error: null,
+  })
+
+  useEffect(() => {
+    let cancelled = false
+    listMemories('', 200)
+      .then((items) => {
+        if (cancelled) return
+        setState({ items, loading: false, error: null })
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return
+        const message = err instanceof Error ? err.message : 'failed to load memory'
+        setState({ items: [], loading: false, error: message })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  return state
+}
+
 /**
- * Memory — long-term memories + ingested knowledge. Visual rebuild backed
- * by the Claude Design handoff fixture (src/design/memoryMocks.ts). The
- * backend currently exposes a thinner memory schema; wiring live data
- * (confidence, cluster, source-conv refs) is a follow-up.
+ * Memory — long-term memories surfaced from the Curator, plus ingested
+ * knowledge. Fetches `/api/memory` on mount and maps the wire shape into the
+ * Liminal `Memory` type via `mapApiMemoryToDesign`.
  */
 export function MemoryPage() {
+  const { items: memories, loading, error } = useMemories()
+  const knowledge = useKnowledge()
+
   const [tab, setTab] = useState<MemoryTab>('memory')
   const [filter, setFilter] = useState<MemoryFilter>('all')
   const [sort, setSort] = useState<MemorySort>('cluster')
@@ -33,16 +68,16 @@ export function MemoryPage() {
 
   const counts = useMemo(
     () => ({
-      total: MEMORIES.length,
-      certain:  MEMORIES.filter((m) => m.confidence === 'certain').length,
-      inferred: MEMORIES.filter((m) => m.confidence === 'inferred').length,
-      assumed:  MEMORIES.filter((m) => m.confidence === 'assumed').length,
+      total: memories.length,
+      certain:  memories.filter((m) => m.confidence === 'certain').length,
+      inferred: memories.filter((m) => m.confidence === 'inferred').length,
+      assumed:  memories.filter((m) => m.confidence === 'assumed').length,
     }),
-    [],
+    [memories],
   )
 
   const sortedItems = useMemo(() => {
-    let items = MEMORIES
+    let items = memories
     if (filter !== 'all') items = items.filter((m) => m.confidence === filter)
     const q = query.trim().toLowerCase()
     if (q) {
@@ -61,7 +96,7 @@ export function MemoryPage() {
       return 0
     })
     return sorted
-  }, [filter, sort, query])
+  }, [memories, filter, sort, query])
 
   const groupedByCluster = useMemo(() => {
     if (sort !== 'cluster') return null
@@ -87,8 +122,8 @@ export function MemoryPage() {
         <MemoryTabs
           tab={tab}
           setTab={setTab}
-          memoryCount={MEMORIES.length}
-          knowledgeCount={KNOWLEDGE.length}
+          memoryCount={memories.length}
+          knowledgeCount={knowledge.items.length}
         />
       </div>
 
@@ -107,7 +142,14 @@ export function MemoryPage() {
               setQuery={setQuery}
               counts={counts}
             />
-            {sortedItems.length === 0 ? (
+            {loading ? (
+              <MemoryStatus text="Reading what I remember…" />
+            ) : error ? (
+              <MemoryStatus
+                text={`Something went wrong reaching memory — ${error}`}
+                tone="error"
+              />
+            ) : sortedItems.length === 0 ? (
               <MemoryEmpty query={query} />
             ) : groupedByCluster ? (
               groupedByCluster.map(([cluster, group]) => (
@@ -151,9 +193,39 @@ export function MemoryPage() {
             )}
           </>
         ) : (
-          <KnowledgeView density={density} editorial={editorial} />
+          <KnowledgeView
+            density={density}
+            editorial={editorial}
+            docs={knowledge.items}
+            loading={knowledge.loading}
+            error={knowledge.error}
+            onUpload={knowledge.upload}
+            onDelete={knowledge.remove}
+          />
         )}
       </div>
+    </div>
+  )
+}
+
+interface MemoryStatusProps {
+  text: string
+  tone?: 'neutral' | 'error'
+}
+
+function MemoryStatus({ text, tone = 'neutral' }: MemoryStatusProps) {
+  return (
+    <div
+      className="font-serif italic"
+      role={tone === 'error' ? 'alert' : 'status'}
+      style={{
+        padding: '48px 12px',
+        textAlign: 'center',
+        fontSize: 14,
+        color: tone === 'error' ? 'var(--red)' : 'var(--ink-muted)',
+      }}
+    >
+      {text}
     </div>
   )
 }

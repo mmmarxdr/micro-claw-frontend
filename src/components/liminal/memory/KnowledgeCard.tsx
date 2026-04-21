@@ -5,11 +5,28 @@ import type { Density } from './MemoryCard'
 interface KnowledgeCardProps {
   kn: KnowledgeDoc
   density: Density
+  onDelete?: (id: string) => Promise<void>
 }
 
-export function KnowledgeCard({ kn, density }: KnowledgeCardProps) {
+export function KnowledgeCard({ kn, density, onDelete }: KnowledgeCardProps) {
   const [hover, setHover] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const isIndexing = kn.status === 'indexing'
+  const isEmpty = kn.status === 'empty'
+
+  async function handleDelete() {
+    if (!onDelete) return
+    const confirmed = window.confirm(
+      `Forget "${kn.title}"? This removes the document and its chunks from Daimon's knowledge base.`,
+    )
+    if (!confirmed) return
+    setDeleting(true)
+    try {
+      await onDelete(kn.id)
+    } finally {
+      setDeleting(false)
+    }
+  }
   const padY = density === 'dense' ? 12 : density === 'sparse' ? 20 : 16
   const padX = density === 'dense' ? 14 : density === 'sparse' ? 22 : 18
 
@@ -50,7 +67,7 @@ export function KnowledgeCard({ kn, density }: KnowledgeCardProps) {
             <span>{kn.chunks} chunks</span>
           </div>
         </div>
-        {isIndexing ? (
+        {isIndexing && (
           <span
             className="inline-flex items-center font-serif italic rounded-full"
             style={{
@@ -73,7 +90,23 @@ export function KnowledgeCard({ kn, density }: KnowledgeCardProps) {
             />
             indexing
           </span>
-        ) : (
+        )}
+        {isEmpty && (
+          <span
+            className="inline-flex items-center font-serif italic rounded-full"
+            title="Daimon could not extract any text from this file. Try converting to markdown or plain text."
+            style={{
+              fontSize: 10,
+              color: 'var(--red)',
+              background: 'color-mix(in srgb, var(--red) 8%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--red) 27%, transparent)',
+              padding: '2px 8px',
+            }}
+          >
+            no text
+          </span>
+        )}
+        {!isIndexing && !isEmpty && (
           <span
             className="inline-flex items-center font-serif italic rounded-full"
             style={{
@@ -87,17 +120,52 @@ export function KnowledgeCard({ kn, density }: KnowledgeCardProps) {
             ready
           </span>
         )}
+        {onDelete && (
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleting}
+            aria-label={`Forget ${kn.title}`}
+            title="Forget this document"
+            className="cursor-pointer"
+            style={{
+              marginLeft: 8,
+              width: 22,
+              height: 22,
+              borderRadius: 4,
+              background: 'transparent',
+              border: '1px solid transparent',
+              color: 'var(--ink-muted)',
+              fontSize: 12,
+              lineHeight: 1,
+              opacity: hover || deleting ? 1 : 0,
+              transition: 'opacity 0.15s, color 0.15s',
+              cursor: deleting ? 'wait' : 'pointer',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--red)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--ink-muted)'
+            }}
+          >
+            ×
+          </button>
+        )}
       </div>
 
       <div
+        className={isEmpty ? 'font-serif italic' : ''}
         style={{
           marginTop: 12,
           fontSize: 12.5,
-          color: 'var(--ink-soft)',
+          color: isEmpty ? 'var(--ink-muted)' : 'var(--ink-soft)',
           lineHeight: 1.55,
         }}
       >
-        {kn.summary}
+        {isEmpty
+          ? "I couldn't read any text from this file. Try converting it to markdown or plain text first — common with LaTeX-generated PDFs and scanned documents."
+          : kn.summary}
       </div>
 
       <div

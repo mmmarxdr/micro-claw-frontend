@@ -11,6 +11,7 @@ export const CLUSTER_META: Record<Cluster, ClusterMeta> = {
   projects:      { label: 'Projects',      daimon: 'what we are building together' },
   relationships: { label: 'Relationships', daimon: 'the people around you' },
   technical:     { label: 'Technical',     daimon: 'your tools and terrain' },
+  general:       { label: 'Everything else', daimon: 'odds and ends I held on to' },
 }
 
 interface ClusterHeaderProps {
