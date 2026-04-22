@@ -39,6 +39,8 @@ export function LiminalInput({
   autoFocus = true,
 }: LiminalInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const shouldRefocusRef = useRef(false)
+  const prevDisabledRef = useRef(disabled)
   const hasPills = !!(onAttach || onToolsMenu || onMention)
 
   // Auto-resize the textarea up to a cap.
@@ -53,10 +55,26 @@ export function LiminalInput({
     if (autoFocus) textareaRef.current?.focus()
   }, [autoFocus])
 
+  // When the input becomes disabled on submit (isWaiting=true), the browser
+  // drops focus from the <textarea>. Re-focus once the turn finishes so the
+  // user can keep typing without clicking back into the input.
+  useEffect(() => {
+    if (prevDisabledRef.current && !disabled && shouldRefocusRef.current) {
+      shouldRefocusRef.current = false
+      textareaRef.current?.focus()
+    }
+    prevDisabledRef.current = disabled
+  }, [disabled])
+
+  const submit = () => {
+    shouldRefocusRef.current = true
+    onSubmit()
+  }
+
   const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      if (!disabled && value.trim()) onSubmit()
+      if (!disabled && value.trim()) submit()
     }
   }
 
@@ -81,7 +99,6 @@ export function LiminalInput({
           rows={1}
           className="liminal-input flex-1 resize-none bg-transparent outline-none text-ink font-sans"
           style={{
-            fontSize: 13.5,
             lineHeight: 1.45,
             minHeight: 22,
             maxHeight: 180,
@@ -89,7 +106,7 @@ export function LiminalInput({
           }}
         />
         {hasPills && (
-          <div className="flex items-center gap-1.5 shrink-0" style={{ paddingBottom: 4 }}>
+          <div className="flex items-center gap-1.5 shrink-0" style={{ paddingBottom: 2 }}>
             {onAttach && <LiminalPill onClick={onAttach}>Attach</LiminalPill>}
             {onToolsMenu && <LiminalPill onClick={onToolsMenu}>/ tools</LiminalPill>}
             {onMention && <LiminalPill onClick={onMention}>@ mention</LiminalPill>}
@@ -100,7 +117,7 @@ export function LiminalInput({
             type="button"
             onClick={onSummon}
             className="cursor-pointer shrink-0"
-            style={{ paddingBottom: 4 }}
+            style={{ paddingBottom: 2 }}
             title="Command palette"
           >
             <Kbd>{MOD} K</Kbd>
@@ -108,7 +125,7 @@ export function LiminalInput({
         )}
         <button
           type="button"
-          onClick={onSubmit}
+          onClick={submit}
           disabled={disabled || !value.trim()}
           className="font-sans flex items-center gap-1.5 rounded-[5px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
           style={{

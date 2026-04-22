@@ -3,6 +3,42 @@
 @tailwind utilities;
 
 /* ─────────────────────────────────────────────────────────────────
+   Custom scrollbars — themed, thin, subtle. Replaces the default
+   chunky OS scrollbar that clashes with the Liminal aesthetic.
+   Firefox uses scrollbar-width/color; WebKit uses pseudo-elements.
+   ───────────────────────────────────────────────────────────────── */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--line-strong);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--ink-muted);
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ─────────────────────────────────────────────────────────────────
    Liminal tokens — warm paper / warm near-black + single teal.
    New "ink/paper" vocabulary lives alongside legacy --color-* vars
    so chat can adopt Liminal while non-redesigned pages keep working.
@@ -124,11 +160,20 @@
   }
 
   /* Liminal input — italic serif placeholder */
+  .liminal-input {
+    font-size: 13.5px;
+  }
   .liminal-input::placeholder {
     font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
     font-style: italic;
     color: var(--ink-muted);
     opacity: 1;
+  }
+  /* Mobile: ≥16px prevents iOS Safari from auto-zooming on focus. */
+  @media (max-width: 768px) {
+    .liminal-input {
+      font-size: 16px;
+    }
   }
 
   /* Memory — indexing badge pulse + file-type progress bar */

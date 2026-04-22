@@ -742,12 +742,14 @@ export function ChatPage() {
   const showLiveReasoning = liveReasoning.length > 0 && !turnHasMessageRef.current
 
   return (
-    <div className="relative flex flex-col" style={{ height: '100vh' }}>
+    <div className="relative flex flex-col" style={{ height: '100dvh' }}>
       {/* Header */}
       <div
-        className="flex items-center gap-3 shrink-0"
+        className="flex items-center gap-3 shrink-0 pl-[52px] md:pl-6"
         style={{
-          padding: '11px 24px',
+          paddingTop: 11,
+          paddingBottom: 11,
+          paddingRight: 24,
           borderBottom: '1px solid var(--line)',
           background: 'var(--bg)',
         }}
