@@ -7,9 +7,15 @@ interface UseWebSocketOptions {
   path: string
   onMessage: (data: unknown) => void
   enabled?: boolean
+  /**
+   * Optional query params appended to the WS URL. Preserved across
+   * auto-reconnects — Resume relies on this to keep the same
+   * conversation_id after a network blip.
+   */
+  searchParams?: Record<string, string>
 }
 
-export function useWebSocket({ path, onMessage, enabled = true }: UseWebSocketOptions) {
+export function useWebSocket({ path, onMessage, enabled = true, searchParams }: UseWebSocketOptions) {
   const [status, setStatus] = useState<WsStatus>('disconnected')
   const wsRef = useRef<WebSocket | null>(null)
   const retryCount = useRef(0)
@@ -17,12 +23,18 @@ export function useWebSocket({ path, onMessage, enabled = true }: UseWebSocketOp
   const onMessageRef = useRef(onMessage)
   onMessageRef.current = onMessage
 
+  // Capture the searchParams in a ref so the connect closure always reads
+  // the latest value without re-creating the callback (and re-triggering
+  // the effect) on every render.
+  const searchParamsRef = useRef(searchParams)
+  searchParamsRef.current = searchParams
+
   const connect = useCallback(() => {
     if (!enabled) return
     if (wsRef.current?.readyState === WebSocket.OPEN) return
 
     setStatus('connecting')
-    const ws = createWebSocket(path)
+    const ws = createWebSocket(path, searchParamsRef.current)
     wsRef.current = ws
 
     ws.onopen = () => {

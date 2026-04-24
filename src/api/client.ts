@@ -77,9 +77,24 @@ export interface Conversation {
 export interface ConversationSummary {
   id: string
   channel_id: string
+  /**
+   * Display title for the conversation. Resolved by the backend with the
+   * precedence: metadata.title (LLM-generated or manual rename) → first
+   * user message truncated to 60 runes → empty string.
+   */
+  title: string
   message_count: number
   last_message: string
   updated_at: string
+}
+
+// Page of messages returned by GET /api/conversations/:id/messages.
+// Cursor-based going backward: pass the previous page's `oldest_index` as
+// `before` on the next request; has_more is true when oldest_index > 0.
+export interface MessagesPage {
+  messages: Message[]
+  oldest_index: number
+  has_more: boolean
 }
 
 export interface MemoryEntry {
@@ -258,6 +273,31 @@ const _realApi = {
   conversation: (id: string) => request<Conversation>(`/conversations/${id}`),
   deleteConversation: (id: string) => request<void>(`/conversations/${id}`, { method: 'DELETE' }),
 
+  /** GET /api/conversations/:id/messages — paginated window (newest-first page). */
+  conversationMessages: (id: string, params?: { before?: number; limit?: number }) => {
+    const q = new URLSearchParams()
+    if (params?.before !== undefined && params.before >= 0) q.set('before', String(params.before))
+    if (params?.limit !== undefined) q.set('limit', String(params.limit))
+    const qs = q.toString()
+    return request<MessagesPage>(
+      `/conversations/${encodeURIComponent(id)}/messages${qs ? `?${qs}` : ''}`
+    )
+  },
+
+  /** PATCH /api/conversations/:id — rename title. */
+  renameConversation: (id: string, title: string) =>
+    request<{ id: string; title: string }>(`/conversations/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ title }),
+    }),
+
+  /** POST /api/conversations/:id/restore — clear deleted_at. */
+  restoreConversation: (id: string) =>
+    request<{ id: string; restored: boolean }>(
+      `/conversations/${encodeURIComponent(id)}/restore`,
+      { method: 'POST' }
+    ),
+
   memory: (q = '', limit = 20) =>
     request<{ items: MemoryEntry[] }>(`/memory?q=${encodeURIComponent(q)}&limit=${limit}`),
 
@@ -314,15 +354,18 @@ const _realApi = {
 
 import { mockApi as _mockApi, MockWebSocket as _MockWebSocket } from './mock'
 
-export function createWebSocket(path: string): WebSocket {
+export function createWebSocket(path: string, searchParams?: Record<string, string>): WebSocket {
+  const qs = searchParams
+    ? '?' + new URLSearchParams(searchParams).toString()
+    : ''
   if (import.meta.env.VITE_MOCK === 'true') {
-    return new _MockWebSocket(path) as unknown as WebSocket
+    return new _MockWebSocket(path + qs) as unknown as WebSocket
   }
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   const host = window.location.host
   // Browser sends HttpOnly cookies automatically on WebSocket handshake.
   // No ?token= query param — cookie-only auth (FR-41, INV-7).
-  return new WebSocket(`${protocol}//${host}${path}`)
+  return new WebSocket(`${protocol}//${host}${path}${qs}`)
 }
 
 // ─── Conditional mock swap (tree-shaken in production) ────────────────────────
