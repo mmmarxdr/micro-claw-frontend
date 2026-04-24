@@ -1,6 +1,7 @@
 import { useRef, useState, useMemo } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { ModelInfo } from '../../api/client'
+import { formatPricePerM } from '../../lib/format'
 
 export interface ModelPickerProps {
   value: string
@@ -106,8 +107,8 @@ export function ModelPicker({ value, onChange, modelList, isLoading, error, disa
                   <span className="ml-auto text-xs text-accent shrink-0">free</span>
                 )}
                 {model.prompt_cost > 0 && !model.free && (
-                  <span className="ml-auto text-xs text-text-disabled shrink-0">
-                    ${model.prompt_cost}/M
+                  <span className="ml-auto text-xs text-text-disabled shrink-0 font-mono">
+                    {formatPricePerM(model.prompt_cost)}/M
                   </span>
                 )}
               </div>

@@ -1,5 +1,10 @@
 import { useMemo, useState } from 'react'
 import { CODE_PALETTE } from '../../design/tokens'
+import { shellRunHint } from '../../lib/host'
+
+// Languages whose code blocks are shell commands a user is expected to run.
+// Adding to this set makes the host-context hint appear under the block.
+const SHELL_LANGS = new Set(['bash', 'sh', 'shell', 'zsh'])
 
 interface LiminalCodeProps {
   code: string
@@ -196,6 +201,10 @@ export function LiminalCode({
   const [copied, setCopied] = useState(false)
   const lines = useMemo(() => tokensToLines(tokenize(code, lang)), [code, lang])
   const rawLines = useMemo(() => code.split('\n'), [code])
+  // Compute the run-context hint once per render — `shellRunHint` reads
+  // window.location.hostname which never changes within a page lifetime.
+  const isShell = SHELL_LANGS.has(lang.toLowerCase())
+  const runHint = isShell && !hideChrome ? shellRunHint() : ''
 
   const onCopy = async () => {
     try {
@@ -320,6 +329,26 @@ export function LiminalCode({
           })}
         </pre>
       </div>
+      {/* Run-context footer — only for shell snippets, tells the user where
+          this command should actually execute. On a VPS the daimon is on a
+          different machine than the browser; without this hint users naively
+          paste into their local terminal and the command runs in the wrong
+          place (or fails because the env doesn't match). */}
+      {runHint && (
+        <div
+          className="font-mono"
+          style={{
+            padding: '5px 14px 6px',
+            borderTop: '1px solid rgba(234,229,216,0.05)',
+            background: 'rgba(234,229,216,0.015)',
+            fontSize: 10,
+            color: '#6f6957',
+            letterSpacing: 0.4,
+          }}
+        >
+          {runHint}
+        </div>
+      )}
     </div>
   )
 }

@@ -34,30 +34,34 @@ export default {
         },
         user: 'var(--user)',
 
-        // ── Legacy palette (for non-redesigned pages) ────────────
-        background: 'var(--color-background)',
+        // ── Legacy palette ─────────────────────────────────────────
+        // Tokens kept for backwards compat with non-Liminal pages
+        // (Settings, MCP, Logs). They now point to Liminal CSS vars so
+        // the visual language is unified everywhere — zero per-page edits
+        // required for the colour swap.
+        background: 'var(--bg)',
         accent: {
-          DEFAULT: '#10b981',
-          hover:   '#059669',
-          light:   'var(--color-accent-light)',
-          muted:   '#6ee7b7',
-          'light-border': 'var(--color-accent-light-border)',
+          DEFAULT: 'var(--accent)',
+          hover:   'var(--accent-strong)',
+          light:   'var(--accent-soft)',
+          muted:   'var(--accent-soft)',
+          'light-border': 'color-mix(in srgb, var(--accent) 25%, transparent)',
         },
-        surface:  'var(--color-surface)',
-        'hover-surface': 'var(--color-hover-surface)',
-        'logs-alt-row':  'var(--color-logs-alt-row)',
+        surface:        'var(--bg-elev)',
+        'hover-surface':'var(--bg-deep)',
+        'logs-alt-row': 'var(--bg-deep)',
         border: {
-          DEFAULT: 'var(--color-border)',
-          strong:  'var(--color-border-strong)',
+          DEFAULT: 'var(--line)',
+          strong:  'var(--line-strong)',
         },
         text: {
-          primary:   'var(--color-text-primary)',
-          secondary: 'var(--color-text-secondary)',
-          disabled:  'var(--color-text-disabled)',
+          primary:   'var(--ink)',
+          secondary: 'var(--ink-soft)',
+          disabled:  'var(--ink-muted)',
         },
-        success: { DEFAULT: '#10b981', light: 'rgba(16, 185, 129, 0.1)' },
-        warning: { DEFAULT: '#f59e0b', light: 'rgba(245, 158, 11, 0.1)' },
-        error:   { DEFAULT: '#ef4444', light: 'rgba(239, 68, 68, 0.1)' },
+        success: { DEFAULT: 'var(--green)', light: 'color-mix(in srgb, var(--green) 12%, transparent)' },
+        warning: { DEFAULT: 'var(--amber)', light: 'color-mix(in srgb, var(--amber) 12%, transparent)' },
+        error:   { DEFAULT: 'var(--red)',   light: 'color-mix(in srgb, var(--red) 12%, transparent)' },
       },
       fontFamily: {
         sans:  ["'Inter'", 'system-ui', '-apple-system', 'BlinkMacSystemFont', "'Segoe UI'", 'sans-serif'],
