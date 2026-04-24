@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Trash2, ChevronDown } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { Trash2, ChevronDown, AlertTriangle } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { useWebSocket, type WsStatus } from '../hooks/useWebSocket'
-import { Button } from '../components/ui/Button'
-import { Badge } from '../components/ui/Badge'
+import { LiminalGlyph } from '../components/liminal/LiminalGlyph'
 import { cn } from '../lib/utils'
 import { uuid } from '../lib/uuid'
 
@@ -18,16 +18,21 @@ interface LogEntry {
   [key: string]: unknown
 }
 
+interface StreamNotice {
+  msg: string
+  time: string
+}
+
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const LEVELS: LogLevel[] = ['DEBUG', 'INFO', 'WARN', 'ERROR']
 const MAX_ENTRIES = 500
 
-const levelColor: Record<LogLevel, string> = {
-  DEBUG: 'text-text-disabled',
-  INFO:  'text-accent',
-  WARN:  'text-warning',
-  ERROR: 'text-error',
+const levelTone: Record<LogLevel, string> = {
+  DEBUG: 'var(--ink-muted)',
+  INFO:  'var(--accent)',
+  WARN:  'var(--amber)',
+  ERROR: 'var(--red)',
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -49,28 +54,108 @@ function formatTime(iso: string): string {
 
 function extraFields(entry: LogEntry): string {
   return Object.entries(entry)
-    .filter(([k]) => !['id', 'time', 'level', 'msg'].includes(k))
+    .filter(([k]) => !['id', 'time', 'level', 'msg', 'event_type'].includes(k))
     .map(([k, v]) => `${k}=${String(v)}`)
     .join('  ')
 }
 
-// ── Connection status badge ──────────────────────────────────────────────────
+// ── Liminal primitives ───────────────────────────────────────────────────────
 
-function ConnectionStatus({ status }: { status: WsStatus }) {
-  const map: Record<WsStatus, { label: string; variant: 'success' | 'warning' | 'default' | 'error' }> = {
-    connected:    { label: 'Connected',    variant: 'success'  },
-    connecting:   { label: 'Connecting…',  variant: 'warning'  },
-    disconnected: { label: 'Disconnected', variant: 'default'  },
-    error:        { label: 'Error',        variant: 'error'    },
-  }
-  const s = map[status]
-  return <Badge variant={s.variant}>{s.label}</Badge>
+const cardBaseStyle: CSSProperties = {
+  background: 'var(--bg-elev)',
+  border: '1px solid var(--line)',
+  borderRadius: 6,
+}
+
+function StatusDot({ status }: { status: WsStatus }) {
+  const color =
+    status === 'connected' ? 'var(--accent)' :
+    status === 'connecting' ? 'var(--amber)' :
+    status === 'error' ? 'var(--red)' :
+    'var(--ink-faint)'
+  const label =
+    status === 'connected' ? 'streaming' :
+    status === 'connecting' ? 'connecting' :
+    status === 'error' ? 'error' :
+    'disconnected'
+  return (
+    <span
+      className="font-mono inline-flex items-center"
+      style={{
+        gap: 6,
+        fontSize: 10.5,
+        letterSpacing: 0.6,
+        color: 'var(--ink-muted)',
+        textTransform: 'uppercase',
+      }}
+    >
+      <span
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: 99,
+          background: color,
+          boxShadow: status === 'connected' ? `0 0 8px ${color}` : 'none',
+        }}
+      />
+      {label}
+    </span>
+  )
+}
+
+function StreamUnavailableBanner({ notice }: { notice: StreamNotice }) {
+  return (
+    <div
+      style={{
+        ...cardBaseStyle,
+        padding: '20px 22px',
+        borderColor: 'color-mix(in srgb, var(--amber) 35%, var(--line))',
+        background: 'color-mix(in srgb, var(--amber) 6%, var(--bg-elev))',
+      }}
+    >
+      <div className="flex items-start" style={{ gap: 12 }}>
+        <AlertTriangle size={16} style={{ color: 'var(--amber)', marginTop: 2, flexShrink: 0 }} />
+        <div style={{ flex: 1 }}>
+          <div
+            className="font-serif"
+            style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)', marginBottom: 4 }}
+          >
+            Live log stream is unavailable.
+          </div>
+          <div
+            className="font-serif italic"
+            style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.55 }}
+          >
+            {notice.msg}
+          </div>
+          <Link
+            to="/settings"
+            className="font-mono"
+            style={{
+              display: 'inline-block',
+              marginTop: 10,
+              fontSize: 11,
+              letterSpacing: 0.6,
+              textTransform: 'uppercase',
+              color: 'var(--accent)',
+              textDecoration: 'none',
+              borderBottom: '1px solid color-mix(in srgb, var(--accent) 40%, transparent)',
+              paddingBottom: 1,
+            }}
+          >
+            open settings →
+          </Link>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 // ── Main page ────────────────────────────────────────────────────────────────
 
 export function LogsPage() {
   const [entries, setEntries] = useState<LogEntry[]>([])
+  const [notice, setNotice] = useState<StreamNotice | null>(null)
   const [activeLevels, setActiveLevels] = useState<Set<LogLevel>>(new Set(LEVELS))
   const [autoScroll, setAutoScroll] = useState(true)
   const [newLineCount, setNewLineCount] = useState(0)
@@ -84,17 +169,25 @@ export function LogsPage() {
       time?: string
       level?: string
       msg?: string
+      event_type?: string
       [key: string]: unknown
     }
     if (!raw.time || !raw.level || !raw.msg) return
+
+    // Backend sends a single frame with event_type=stream_unavailable when
+    // the audit backend cannot stream. Surface it as a banner, not as a log line.
+    if (raw.event_type === 'stream_unavailable') {
+      setNotice({ msg: raw.msg, time: raw.time })
+      return
+    }
 
     const { time, level, msg, ...rest } = raw
 
     const entry: LogEntry = {
       id:   uuid(),
-      time: time as string,
-      level: (level as string).toUpperCase() as LogLevel,
-      msg:  msg as string,
+      time,
+      level: level.toUpperCase() as LogLevel,
+      msg,
       ...rest,
     }
 
@@ -115,7 +208,7 @@ export function LogsPage() {
       setNewLineCount(n => n + 1)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entries]) // intentionally omit autoScroll — we only want this to fire on new entries
+  }, [entries])
 
   const handleScroll = () => {
     const el = scrollRef.current
@@ -137,70 +230,145 @@ export function LogsPage() {
   const toggleLevel = (level: LogLevel) => {
     setActiveLevels(prev => {
       const next = new Set(prev)
-      if (next.has(level)) {
-        next.delete(level)
-      } else {
-        next.add(level)
-      }
-      // Keep at least one level active
+      if (next.has(level)) next.delete(level)
+      else next.add(level)
       return next.size === 0 ? prev : next
     })
   }
 
   // ── Derived data
-  const filteredEntries = entries.filter(e => activeLevels.has(e.level))
+  const filteredEntries = useMemo(
+    () => entries.filter(e => activeLevels.has(e.level)),
+    [entries, activeLevels],
+  )
 
   return (
-    <div className="relative flex flex-col h-screen">
-      {/* ── Top bar ── */}
-      <div className="flex items-center justify-between px-6 py-3 border-b border-border bg-background shrink-0">
-        <div>
-          <h1 className="text-[15px] font-semibold text-text-primary">Logs</h1>
-          <p className="text-xs text-text-secondary">Live agent log stream.</p>
+    <div
+      className="flex flex-col relative"
+      style={{
+        height: '100vh',
+        padding: '28px 32px 0',
+        maxWidth: 1200,
+        margin: '0 auto',
+        width: '100%',
+      }}
+    >
+      {/* ── Preamble ── */}
+      <div style={{ marginBottom: 20, flexShrink: 0 }}>
+        <div className="flex items-baseline" style={{ gap: 14, marginBottom: 6 }}>
+          <LiminalGlyph size={20} animate />
+          <h1
+            className="font-serif"
+            style={{
+              margin: 0,
+              fontSize: 28,
+              fontWeight: 500,
+              color: 'var(--ink)',
+              letterSpacing: -0.6,
+            }}
+          >
+            <span className="italic" style={{ color: 'var(--accent)', fontWeight: 400 }}>
+              what I'm doing right now
+            </span>
+            <span style={{ color: 'var(--ink-muted)', fontWeight: 400 }}>&nbsp;·&nbsp;</span>
+            <span>live log stream</span>
+          </h1>
         </div>
-        <ConnectionStatus status={status} />
+        <p
+          className="font-serif italic"
+          style={{
+            fontSize: 14.5,
+            color: 'var(--ink-soft)',
+            maxWidth: 640,
+            lineHeight: 1.55,
+            marginLeft: 34,
+            marginTop: 0,
+          }}
+        >
+          every tool call, every model invocation — as it happens.
+        </p>
       </div>
 
+      {/* ── Notice (if streaming unavailable) ── */}
+      {notice && (
+        <div style={{ marginBottom: 14, flexShrink: 0 }}>
+          <StreamUnavailableBanner notice={notice} />
+        </div>
+      )}
+
       {/* ── Filter bar ── */}
-      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-background shrink-0 flex-wrap">
-        {/* Level toggles */}
-        <div className="flex items-center gap-1.5 flex-1 min-w-0">
-          {LEVELS.map(level => (
-            <button
-              key={level}
-              onClick={() => toggleLevel(level)}
-              className={cn(
-                'text-xs px-3 py-1 rounded-md transition-colors border font-mono',
-                activeLevels.has(level)
-                  ? cn('bg-hover-surface border-border-strong font-medium', levelColor[level])
-                  : 'bg-transparent text-text-disabled border-border hover:text-text-secondary'
-              )}
-            >
-              {level}
-            </button>
-          ))}
-          <span className="text-xs text-text-disabled font-mono ml-2">
+      <div
+        className="flex items-center"
+        style={{
+          gap: 10,
+          padding: '10px 14px',
+          ...cardBaseStyle,
+          borderBottomLeftRadius: 0,
+          borderBottomRightRadius: 0,
+          borderBottom: 'none',
+          flexShrink: 0,
+          flexWrap: 'wrap',
+        }}
+      >
+        <div className="flex items-center" style={{ gap: 6, flex: 1, minWidth: 0 }}>
+          {LEVELS.map(level => {
+            const active = activeLevels.has(level)
+            return (
+              <button
+                key={level}
+                onClick={() => toggleLevel(level)}
+                className="font-mono"
+                style={{
+                  fontSize: 10.5,
+                  letterSpacing: 0.8,
+                  padding: '4px 10px',
+                  borderRadius: 4,
+                  border: '1px solid',
+                  borderColor: active
+                    ? `color-mix(in srgb, ${levelTone[level]} 50%, var(--line))`
+                    : 'var(--line)',
+                  background: active
+                    ? `color-mix(in srgb, ${levelTone[level]} 8%, transparent)`
+                    : 'transparent',
+                  color: active ? levelTone[level] : 'var(--ink-faint)',
+                  cursor: 'pointer',
+                  transition: 'all 120ms ease',
+                }}
+              >
+                {level}
+              </button>
+            )
+          })}
+          <span
+            className="font-mono"
+            style={{
+              fontSize: 10.5,
+              letterSpacing: 0.6,
+              color: 'var(--ink-faint)',
+              marginLeft: 8,
+            }}
+          >
             {filteredEntries.length} {filteredEntries.length === 1 ? 'line' : 'lines'}
           </span>
         </div>
 
-        {/* Controls */}
-        <div className="flex items-center gap-2 shrink-0">
-          <Button
-            variant="ghost"
-            size="sm"
+        <div className="flex items-center" style={{ gap: 14 }}>
+          <StatusDot status={status} />
+          <button
             onClick={() => (autoScroll ? setAutoScroll(false) : resumeScroll())}
+            className="font-mono"
+            style={controlButtonStyle}
           >
-            {autoScroll ? 'Pause' : 'Resume'}
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
+            {autoScroll ? 'pause' : 'resume'}
+          </button>
+          <button
             onClick={() => setEntries([])}
+            className="font-mono inline-flex items-center"
+            style={{ ...controlButtonStyle, gap: 5 }}
           >
-            <Trash2 size={13} />
-            Clear
-          </Button>
+            <Trash2 size={11} />
+            clear
+          </button>
         </div>
       </div>
 
@@ -208,11 +376,33 @@ export function LogsPage() {
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto font-mono text-xs bg-background leading-relaxed"
+        className="font-mono relative"
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          background: 'var(--bg-elev)',
+          border: '1px solid var(--line)',
+          borderTop: 'none',
+          borderTopLeftRadius: 0,
+          borderTopRightRadius: 0,
+          borderBottomLeftRadius: 6,
+          borderBottomRightRadius: 6,
+          fontSize: 11.5,
+          lineHeight: 1.65,
+          marginBottom: 28,
+        }}
       >
         {filteredEntries.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-text-disabled font-mono text-xs">
-            Waiting for log stream…
+          <div
+            className="flex items-center justify-center font-serif italic"
+            style={{
+              height: '100%',
+              minHeight: 200,
+              fontSize: 13.5,
+              color: 'var(--ink-faint)',
+            }}
+          >
+            {notice ? 'no logs to show.' : 'waiting for the agent to do something…'}
           </div>
         ) : (
           filteredEntries.map((entry) => {
@@ -220,17 +410,43 @@ export function LogsPage() {
             return (
               <div
                 key={entry.id}
-                className="flex items-baseline gap-3 px-4 py-1 hover:bg-hover-surface transition-colors"
+                className="flex items-baseline"
+                style={{
+                  gap: 12,
+                  padding: '2px 14px',
+                  transition: 'background 120ms ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'color-mix(in srgb, var(--accent) 4%, transparent)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
               >
-                <span className="text-text-disabled w-[140px] shrink-0 tabular-nums">
+                <span
+                  style={{
+                    color: 'var(--ink-faint)',
+                    width: 96,
+                    flexShrink: 0,
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                >
                   {formatTime(entry.time)}
                 </span>
-                <span className={cn('w-[50px] shrink-0 font-medium uppercase', levelColor[entry.level])}>
+                <span
+                  style={{
+                    color: levelTone[entry.level],
+                    width: 44,
+                    flexShrink: 0,
+                    fontWeight: 500,
+                    letterSpacing: 0.4,
+                  }}
+                >
                   {entry.level}
                 </span>
-                <span className="flex-1 text-text-primary break-all">{entry.msg}</span>
+                <span style={{ color: 'var(--ink)', flex: 1, wordBreak: 'break-word' }}>
+                  {entry.msg}
+                </span>
                 {extra && (
-                  <span className="text-text-secondary shrink-0 ml-2">{extra}</span>
+                  <span style={{ color: 'var(--ink-muted)', flexShrink: 0 }}>
+                    {extra}
+                  </span>
                 )}
               </div>
             )
@@ -241,10 +457,31 @@ export function LogsPage() {
 
       {/* ── New lines pill ── */}
       {!autoScroll && newLineCount > 0 && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
+        <div
+          className="absolute"
+          style={{
+            bottom: 50,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 10,
+          }}
+        >
           <button
             onClick={resumeScroll}
-            className="flex items-center gap-1.5 bg-accent text-white text-xs font-medium px-3 py-1.5 rounded-md hover:bg-accent-hover transition-colors"
+            className={cn('flex items-center font-mono')}
+            style={{
+              gap: 6,
+              background: 'var(--accent)',
+              color: 'white',
+              fontSize: 11,
+              letterSpacing: 0.6,
+              textTransform: 'uppercase',
+              padding: '6px 12px',
+              borderRadius: 99,
+              border: 'none',
+              cursor: 'pointer',
+              boxShadow: '0 4px 16px color-mix(in srgb, var(--accent) 40%, transparent)',
+            }}
           >
             <ChevronDown size={12} />
             {newLineCount} new {newLineCount === 1 ? 'line' : 'lines'}
@@ -253,4 +490,17 @@ export function LogsPage() {
       )}
     </div>
   )
+}
+
+const controlButtonStyle: CSSProperties = {
+  fontSize: 10.5,
+  letterSpacing: 0.6,
+  textTransform: 'uppercase',
+  color: 'var(--ink-soft)',
+  background: 'transparent',
+  border: '1px solid var(--line)',
+  borderRadius: 4,
+  padding: '4px 10px',
+  cursor: 'pointer',
+  transition: 'all 120ms ease',
 }
