@@ -36,6 +36,8 @@ interface LiminalSidebarProps {
   modelLabel?: string
   contextUsage?: { used: number; total: number }
   todayCost?: string
+  /** Build version surfaced as a small mono tag in the footer. */
+  version?: string
 }
 
 export function LiminalSidebar({
@@ -45,6 +47,7 @@ export function LiminalSidebar({
   modelLabel = '—',
   contextUsage,
   todayCost = '—',
+  version,
 }: LiminalSidebarProps) {
   const { theme, toggleTheme } = useTheme()
   const { logout } = useAuth()
@@ -189,6 +192,20 @@ export function LiminalSidebar({
             }}
           />
           <span className="flex-1" style={{ color: 'var(--ink)' }}>listening</span>
+          {version && (
+            <span
+              className="font-mono"
+              style={{
+                fontSize: 9.5,
+                letterSpacing: 0.4,
+                color: 'var(--ink-faint)',
+                marginRight: 4,
+              }}
+              title={`daimon ${version}`}
+            >
+              v{version}
+            </span>
+          )}
           <button
             type="button"
             onClick={toggleTheme}

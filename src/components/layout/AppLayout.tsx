@@ -4,7 +4,7 @@ import { Menu } from 'lucide-react'
 import { LiminalSidebar } from '../liminal/LiminalSidebar'
 import { LiminalCmd } from '../liminal/LiminalCmd'
 import { useTheme } from '../../contexts/ThemeContext'
-import { useConfig, useMetrics } from '../../hooks/useApi'
+import { useConfig, useMetrics, useStatus } from '../../hooks/useApi'
 import { formatUSD } from '../../lib/format'
 
 // Subset of config consumed by the sidebar footer. The full config has
@@ -35,6 +35,7 @@ export function AppLayout() {
   // "—" placeholders that LiminalSidebar already renders.
   const { data: rawConfig } = useConfig()
   const { data: metrics } = useMetrics()
+  const { data: status } = useStatus()
   const cfg = rawConfig as SidebarConfig | undefined
 
   const modelLabel = useMemo(() => {
@@ -88,6 +89,7 @@ export function AppLayout() {
         modelLabel={modelLabel}
         contextUsage={contextUsage}
         todayCost={todayCost}
+        version={status?.version}
       />
 
       {drawerOpen && (
