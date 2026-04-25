@@ -48,6 +48,15 @@ export function useMetricsHistory(days = 30) {
   })
 }
 
+export function useSystemMetrics() {
+  return useQuery({
+    queryKey: ['system-metrics'],
+    queryFn: api.systemMetrics,
+    refetchInterval: 5_000, // process/host stats are live — refresh fast
+    staleTime: 0,
+  })
+}
+
 export function useConfig() {
   return useQuery({
     queryKey: ['config'],

@@ -37,6 +37,35 @@ export interface AgentStatus {
   version: string
 }
 
+export interface SystemMetrics {
+  process: {
+    heap_alloc_bytes: number
+    heap_sys_bytes: number
+    rss_bytes: number
+    cpu_percent: number
+    goroutines: number
+    gc_pause_ms: number
+    uptime_sec: number
+  }
+  host: {
+    cpu_percent: number
+    cpu_cores: number
+    mem_total_bytes: number
+    mem_used_bytes: number
+    mem_percent: number
+    disk_total_bytes: number
+    disk_used_bytes: number
+    disk_percent: number
+    disk_mountpoint?: string
+  }
+  storage: {
+    store_bytes: number
+    audit_bytes: number
+    skills_bytes: number
+    total_bytes: number
+  }
+}
+
 export interface MetricsSnapshot {
   today: {
     input_tokens: number
@@ -271,6 +300,7 @@ const _realApi = {
 
   metrics: () => request<MetricsSnapshot>('/metrics'),
   metricsHistory: (days = 30) => request<MetricsSnapshot>(`/metrics/history?days=${days}`),
+  systemMetrics: () => request<SystemMetrics>('/system-metrics'),
 
   conversations: (params?: { limit?: number; offset?: number; channel?: string }) => {
     const q = new URLSearchParams()

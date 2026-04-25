@@ -2,7 +2,7 @@
 // Provides in-memory implementations of the real API and WebSocket interfaces.
 // Activated when VITE_MOCK === 'true'. Never imported in production builds.
 
-import type { AgentStatus, ApiKnowledgeDoc, MetricsSnapshot, Conversation, ConversationSummary, MemoryEntry, MessagesPage, MCPServer, MCPServerConfig, MCPTestResult, UploadResponse, MediaMeta } from './client'
+import type { AgentStatus, ApiKnowledgeDoc, MetricsSnapshot, SystemMetrics, Conversation, ConversationSummary, MemoryEntry, MessagesPage, MCPServer, MCPServerConfig, MCPTestResult, UploadResponse, MediaMeta } from './client'
 import { uuid } from '../lib/uuid'
 import {
   seedStatus,
@@ -74,6 +74,36 @@ export const mockApi = {
 
   metricsHistory: (days = 30): Promise<MetricsSnapshot> =>
     delay(buildMetricsHistory(days)),
+
+  systemMetrics: (): Promise<SystemMetrics> =>
+    delay({
+      process: {
+        heap_alloc_bytes: 24 * 1024 * 1024,
+        heap_sys_bytes:   48 * 1024 * 1024,
+        rss_bytes:        82 * 1024 * 1024,
+        cpu_percent:      0.4,
+        goroutines:       42,
+        gc_pause_ms:      0.18,
+        uptime_sec:       3 * 3600 + 27 * 60,
+      },
+      host: {
+        cpu_percent:      18.3,
+        cpu_cores:        8,
+        mem_total_bytes:  16 * 1024 * 1024 * 1024,
+        mem_used_bytes:   9.2 * 1024 * 1024 * 1024,
+        mem_percent:      57.5,
+        disk_total_bytes: 500 * 1024 * 1024 * 1024,
+        disk_used_bytes:  120 * 1024 * 1024 * 1024,
+        disk_percent:     24,
+        disk_mountpoint:  '/',
+      },
+      storage: {
+        store_bytes:  42 * 1024 * 1024,
+        audit_bytes:  220 * 1024,
+        skills_bytes: 480 * 1024,
+        total_bytes:  42 * 1024 * 1024 + 220 * 1024 + 480 * 1024,
+      },
+    }),
 
   conversations: (params?: { limit?: number; offset?: number; channel?: string }): Promise<{ items: ConversationSummary[]; total: number }> => {
     let items = mockState.conversations
