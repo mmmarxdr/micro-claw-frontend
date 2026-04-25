@@ -129,7 +129,7 @@ function StreamUnavailableBanner({ notice }: { notice: StreamNotice }) {
             {notice.msg}
           </div>
           <Link
-            to="/settings"
+            to="/settings?tab=web"
             className="font-mono"
             style={{
               display: 'inline-block',

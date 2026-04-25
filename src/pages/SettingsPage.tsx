@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -47,8 +48,12 @@ const PROVIDER_LABELS: Record<ProviderName, string> = {
   ollama:     'Ollama',
 }
 
+const VALID_TABS = new Set<Tab>(['agent', 'provider', 'channel', 'tools', 'memory', 'web'])
+
 export function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<Tab>('agent')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialTab = (searchParams.get('tab') ?? 'agent') as Tab
+  const [activeTab, setActiveTab] = useState<Tab>(VALID_TABS.has(initialTab) ? initialTab : 'agent')
   const [activeProviderTab, setActiveProviderTab] = useState<ProviderName>('openrouter')
   const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' } | null>(null)
   const [dangerModalOpen, setDangerModalOpen] = useState(false)
@@ -248,7 +253,10 @@ export function SettingsPage() {
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                setActiveTab(tab.id)
+                setSearchParams({ tab: tab.id }, { replace: true })
+              }}
               style={{
                 background: 'transparent',
                 border: 'none',
@@ -542,6 +550,89 @@ export function SettingsPage() {
             <FormField label="Auth token" hint="Leave blank to auto-generate on startup.">
               <Input type="password" {...register('web.auth_token')} autoComplete="off" />
             </FormField>
+
+            {/* ── Audit logging ── */}
+            <div
+              style={{
+                marginTop: 28,
+                paddingTop: 22,
+                borderTop: '1px solid var(--line)',
+              }}
+            >
+              <h3
+                className="font-serif"
+                style={{
+                  margin: 0,
+                  marginBottom: 4,
+                  fontSize: 16,
+                  fontWeight: 500,
+                  color: 'var(--ink)',
+                  letterSpacing: -0.3,
+                }}
+              >
+                <span className="italic" style={{ color: 'var(--accent)', fontWeight: 400 }}>
+                  audit logging
+                </span>
+              </h3>
+              <p
+                className="font-serif italic"
+                style={{
+                  fontSize: 13,
+                  color: 'var(--ink-muted)',
+                  marginTop: 0,
+                  marginBottom: 18,
+                  maxWidth: 520,
+                  lineHeight: 1.55,
+                }}
+              >
+                every tool call and model invocation gets recorded — the live stream on
+                /logs reads from here.
+              </p>
+
+              <div className="space-y-5">
+                <Controller
+                  name="audit.enabled"
+                  control={control}
+                  render={({ field }) => (
+                    <Toggle
+                      checked={field.value ?? true}
+                      onChange={field.onChange}
+                      label="Enable audit log"
+                      description="Required for the live log stream. Disabling this will silence /logs."
+                    />
+                  )}
+                />
+                <FormField
+                  label="Backend"
+                  hint="sqlite supports live streaming; file is append-only and won't show in /logs."
+                >
+                  <Controller
+                    name="audit.type"
+                    control={control}
+                    render={({ field }) => (
+                      <Select value={field.value ?? 'sqlite'} onChange={field.onChange}>
+                        <option value="sqlite">sqlite — streamable</option>
+                        <option value="file">file — append-only</option>
+                      </Select>
+                    )}
+                  />
+                </FormField>
+                <FormField label="Path" hint="Where audit data is persisted on disk.">
+                  <Input {...register('audit.path')} placeholder="~/.daimon/audit" />
+                </FormField>
+                <p
+                  className="font-mono"
+                  style={{
+                    fontSize: 11,
+                    letterSpacing: 0.4,
+                    color: 'var(--ink-faint)',
+                    marginTop: -4,
+                  }}
+                >
+                  ⓘ changes apply on save — refresh /logs to see the new stream.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 

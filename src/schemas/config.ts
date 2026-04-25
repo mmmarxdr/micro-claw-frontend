@@ -78,6 +78,7 @@ export const configSchema = z.object({
   }),
   audit: z.object({
     enabled: z.boolean().optional(),
+    type: z.enum(['sqlite', 'file']).optional(),
     path: z.string().optional(),
   }).optional(),
   logging: z.object({
@@ -123,6 +124,7 @@ export const DEFAULT_CONFIG: ConfigFormData = {
   },
   limits: { tool_timeout: 30_000_000_000, total_timeout: 300_000_000_000 },
   web: { enabled: true, port: 8080, host: '0.0.0.0', auth_token: '' },
+  audit: { enabled: true, type: 'sqlite', path: '~/.daimon/audit' },
   rag: {
     enabled: false,
     embedding: { enabled: false, provider: '', model: '', api_key: '', base_url: '' },
