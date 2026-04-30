@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Outlet } from 'react-router-dom'
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Menu } from 'lucide-react'
 import { LiminalSidebar } from '../liminal/LiminalSidebar'
 import { LiminalCmd } from '../liminal/LiminalCmd'
 import { useTheme } from '../../contexts/ThemeContext'
 import { useConfig, useMetrics, useStatus } from '../../hooks/useApi'
 import { formatUSD } from '../../lib/format'
+import { ChatPage, type ChatPageMode } from '../../pages/ChatPage'
+import { getDockClosed, setDockClosed, subscribeDockClosed } from '../../lib/chatDockStorage'
 
 // Subset of config consumed by the sidebar footer. The full config has
 // many other fields; we narrow here so the sidebar wiring is explicit.
@@ -30,6 +32,31 @@ export function AppLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [cmdOpen, setCmdOpen] = useState(false)
   const { toggleTheme } = useTheme()
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  // Floating chat dock — ChatPage is mounted once below, in the always-visible
+  // <main>. The `mode` prop controls what gets rendered (fullscreen on /chat,
+  // dock on every other route, hidden when the user dismissed the dock). The
+  // dismissal persists across reloads so the dock stays out of the way.
+  //
+  // localStorage is the source of truth (read via useSyncExternalStore so any
+  // write — same-tab or cross-tab — re-renders the layout). Coming back to
+  // /chat clears the flag so the next exit shows the dock again.
+  const dockClosed = useSyncExternalStore(subscribeDockClosed, getDockClosed, () => false)
+  const isOnChatRoute = location.pathname === '/chat'
+
+  useEffect(() => {
+    if (isOnChatRoute && dockClosed) {
+      setDockClosed(false)
+    }
+  }, [isOnChatRoute, dockClosed])
+
+  const chatMode: ChatPageMode = isOnChatRoute
+    ? 'fullscreen'
+    : dockClosed
+      ? 'hidden'
+      : 'dock'
 
   // Sidebar footer telemetry. All best-effort — failures collapse to the
   // "—" placeholders that LiminalSidebar already renders.
@@ -113,7 +140,12 @@ export function AppLayout() {
         className="flex-1 overflow-y-auto min-w-0 h-dvh"
         style={{ background: 'var(--bg)' }}
       >
-        <Outlet />
+        {!isOnChatRoute && <Outlet />}
+        <ChatPage
+          mode={chatMode}
+          onDockClose={() => setDockClosed(true)}
+          onDockExpand={() => navigate('/chat')}
+        />
       </main>
 
       <LiminalCmd
