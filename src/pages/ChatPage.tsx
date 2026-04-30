@@ -9,10 +9,28 @@ import { LiminalContinuePill, type PauseReason } from '../components/liminal/Lim
 import { LiminalReasoning } from '../components/liminal/LiminalReasoning'
 import { LiminalGlyph } from '../components/liminal/LiminalGlyph'
 import { LiminalSpeaker } from '../components/liminal/LiminalSpeaker'
+import { ChatDockView } from '../components/chat/ChatDockView'
 import { groupTurns } from '../lib/turnGrouping'
 import { uuid } from '../lib/uuid'
 import { api } from '../api/client'
 import type { Attachment, ChatMessage, MediaMeta, TurnStatus } from '../types/chat'
+
+/**
+ * Render mode for ChatPage. The component is mounted once in AppLayout and
+ * stays alive while the user navigates between routes — `mode` only swaps
+ * the rendered output. All hooks (WebSocket, history hydration, auto-send)
+ * keep running regardless of mode.
+ *
+ * Default `'fullscreen'` preserves the previous standalone behavior so the
+ * existing 100+ ChatPage tests render identically without any prop wiring.
+ */
+export type ChatPageMode = 'fullscreen' | 'dock' | 'hidden'
+
+interface ChatPageProps {
+  mode?: ChatPageMode
+  onDockClose?: () => void
+  onDockExpand?: () => void
+}
 
 // ─────────────────────────────────────────────────────────────────
 // Connection pill — Liminal-styled status indicator
@@ -318,7 +336,11 @@ function FilesDrawer({ open, onClose }: { open: boolean; onClose: () => void }) 
 // ─────────────────────────────────────────────────────────────────
 // Main page
 // ─────────────────────────────────────────────────────────────────
-export function ChatPage() {
+export function ChatPage({
+  mode = 'fullscreen',
+  onDockClose,
+  onDockExpand,
+}: ChatPageProps = {}) {
   // Resume handoff from the conversations list or deep link:
   // /chat?conversation_id=<id> (also accepts ?resume=<id> as a UX alias).
   // When set, the WS upgrade carries the convID as a query param and the
@@ -880,6 +902,21 @@ export function ChatPage() {
     [deferredTurns],
   )
   const showLiveReasoning = liveReasoning.length > 0 && !turnHasMessageRef.current
+
+  // Render-mode branches. All hooks above run on every render so the WS
+  // connection and message history stay live even when the page isn't
+  // visually shown (mode='hidden') or is rendered as the floating dock.
+  if (mode === 'hidden') return null
+  if (mode === 'dock') {
+    return (
+      <ChatDockView
+        messages={messages}
+        status={status}
+        onExpand={onDockExpand ?? (() => {})}
+        onClose={onDockClose ?? (() => {})}
+      />
+    )
+  }
 
   return (
     <div className="relative flex flex-col" style={{ height: '100dvh' }}>

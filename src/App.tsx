@@ -9,7 +9,6 @@ import { OverviewPage } from './pages/OverviewPage'
 import { MetricsPage } from './pages/MetricsPage'
 import { ConversationsPage } from './pages/ConversationsPage'
 import { MemoryPage } from './pages/MemoryPage'
-import { ChatPage } from './pages/ChatPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { ToolsPage } from './pages/ToolsPage'
 import { LogsPage } from './pages/LogsPage'
@@ -45,7 +44,9 @@ function AuthedApp() {
               <Route path="metrics" element={<MetricsPage />} />
               <Route path="conversations" element={<ConversationsPage />} />
               <Route path="memory" element={<MemoryPage />} />
-              <Route path="chat" element={<ChatPage />} />
+              {/* /chat is rendered by AppLayout (always-mounted) so the chat
+                  survives navigation to other routes and can show as a floating dock. */}
+              <Route path="chat" element={null} />
               <Route path="tools" element={<ToolsPage />} />
               <Route path="mcp" element={<MCPPage />} />
               <Route path="settings" element={<SettingsPage />} />
