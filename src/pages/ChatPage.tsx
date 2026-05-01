@@ -908,6 +908,18 @@ export function ChatPage({
   // when the tail hasn't changed mid-stream.
   const recentMessagesForDock = useMemo(() => messages.slice(-3), [messages])
 
+  // Refocus the fullscreen LiminalInput after expanding from the dock — the
+  // user was likely typing or about to type. Tracked via a counter that the
+  // input watches; bumped only on the dock -> fullscreen edge.
+  const [fullscreenFocusToken, setFullscreenFocusToken] = useState(0)
+  const prevModeRef = useRef<ChatPageMode>(mode)
+  useEffect(() => {
+    if (prevModeRef.current === 'dock' && mode === 'fullscreen') {
+      setFullscreenFocusToken((t) => t + 1)
+    }
+    prevModeRef.current = mode
+  }, [mode])
+
   // Render-mode branches. All hooks above run on every render so the WS
   // connection and message history stay live even when the page isn't
   // visually shown (mode='hidden') or is rendered as the floating dock.
@@ -917,6 +929,10 @@ export function ChatPage({
       <ChatDockView
         recentMessages={recentMessagesForDock}
         status={status}
+        input={input}
+        onInputChange={setInput}
+        onSend={handleSend}
+        isWaiting={isWaiting}
         onExpand={onDockExpand ?? (() => {})}
         onClose={onDockClose ?? (() => {})}
       />
@@ -1120,6 +1136,7 @@ export function ChatPage({
         disabled={isWaiting || status !== 'connected'}
         onAttach={() => fileInputRef.current?.click()}
         autoFocus={false}
+        focusToken={fullscreenFocusToken}
       />
 
       {/* Files drawer */}
