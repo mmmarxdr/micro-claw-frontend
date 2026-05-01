@@ -21,6 +21,17 @@ function truncate(text: string, max = TRUNCATE_LEN): string {
   return collapsed.slice(0, Math.max(0, max - 1)) + '…'
 }
 
+// Tail truncation — used for messages currently streaming so the visible
+// portion of the preview keeps changing as new tokens arrive. Without this,
+// once content exceeds TRUNCATE_LEN the head-truncate output stays static
+// even though the underlying content is still growing, and the dock looks
+// frozen mid-stream.
+function truncateTail(text: string, max = TRUNCATE_LEN): string {
+  const collapsed = text.replace(/\s+/g, ' ').trim()
+  if (collapsed.length <= max) return collapsed
+  return '…' + collapsed.slice(-(max - 1))
+}
+
 function ChatDockViewImpl({
   recentMessages,
   status,
@@ -153,21 +164,58 @@ function ChatDockViewImpl({
             --- --- ---
           </span>
         ) : (
-          recentMessages.map((m) => (
-            <div
-              key={m.id}
-              className="flex gap-1.5 min-w-0"
-              style={{ fontSize: 11, lineHeight: 1.45 }}
-            >
-              <span className="font-mono shrink-0" style={{ color: 'var(--ink-muted)' }}>
-                {m.role === 'user' ? 'you' : m.role === 'assistant' ? 'daimon' : '·'}
-              </span>
-              <span className="font-serif truncate min-w-0" style={{ color: 'var(--ink)' }}>
-                {truncate(m.content || '—')}
-              </span>
-            </div>
-          ))
+          recentMessages.map((m, i) => {
+            const isLast = i === recentMessages.length - 1
+            const streamingTail = isLast && m.role === 'assistant' && m.isStreaming
+            const visible = streamingTail
+              ? truncateTail(m.content || '—')
+              : truncate(m.content || '—')
+            return (
+              <div
+                key={m.id}
+                className="flex gap-1.5 min-w-0"
+                style={{ fontSize: 11, lineHeight: 1.45 }}
+              >
+                <span className="font-mono shrink-0" style={{ color: 'var(--ink-muted)' }}>
+                  {m.role === 'user' ? 'you' : m.role === 'assistant' ? 'daimon' : '·'}
+                </span>
+                <span className="font-serif truncate min-w-0" style={{ color: 'var(--ink)' }}>
+                  {visible}
+                </span>
+              </div>
+            )
+          })
         )}
+        {/*
+          Thinking indicator — shown when a turn is in flight but the agent
+          hasn't yet emitted a streaming assistant message (LLM "first token"
+          latency, or between iterations during tool use). Without this the
+          dock looks frozen during the 1-5s pre-stream phase and users wonder
+          if their message even sent.
+        */}
+        {isWaiting &&
+          (() => {
+            const last = recentMessages[recentMessages.length - 1]
+            const liveStream = last?.role === 'assistant' && last.isStreaming
+            if (liveStream) return null
+            return (
+              <div
+                className="flex gap-1.5 min-w-0 items-center"
+                style={{ fontSize: 11, lineHeight: 1.45 }}
+                aria-live="polite"
+              >
+                <span className="font-mono shrink-0" style={{ color: 'var(--ink-muted)' }}>
+                  daimon
+                </span>
+                <span
+                  className="font-mono liminal-breathe"
+                  style={{ color: 'var(--ink-faint)', letterSpacing: 2 }}
+                >
+                  …
+                </span>
+              </div>
+            )
+          })()}
       </div>
 
       {/*

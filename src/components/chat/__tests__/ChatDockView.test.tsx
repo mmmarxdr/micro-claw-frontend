@@ -190,4 +190,56 @@ describe('ChatDockView', () => {
     const textarea = screen.getByRole('textbox', { name: /type a message/i }) as HTMLTextAreaElement
     expect(textarea.disabled).toBe(true)
   })
+
+  it('shows a thinking indicator when waiting and no streaming assistant yet', () => {
+    const messages: ChatMessage[] = [
+      msg({ id: 'u1', role: 'user', content: 'dame 5 factos random' }),
+    ]
+    renderDock({ recentMessages: messages, isWaiting: true })
+    // Two "daimon" labels would mean: one for a streaming row + one for the
+    // indicator. Here we expect ONLY the thinking indicator (no streaming row),
+    // and its content is "…".
+    const ellipses = screen.getByText('…')
+    expect(ellipses).toBeInTheDocument()
+    expect(ellipses.classList.contains('liminal-breathe')).toBe(true)
+  })
+
+  it('does NOT show the thinking indicator while a streaming assistant message is live', () => {
+    const messages: ChatMessage[] = [
+      msg({ id: 'u1', role: 'user', content: 'dame 5 factos random' }),
+      msg({ id: 'a1', role: 'assistant', content: 'Sure', isStreaming: true }),
+    ]
+    renderDock({ recentMessages: messages, isWaiting: true })
+    expect(screen.queryByText('…')).not.toBeInTheDocument()
+  })
+
+  it('does NOT show the thinking indicator when not waiting', () => {
+    renderDock({ isWaiting: false })
+    expect(screen.queryByText('…')).not.toBeInTheDocument()
+  })
+
+  it('uses tail truncation for the last message while it is streaming', () => {
+    // The first 60 chars of the long content are all "a"s, the tail has the
+    // unique sentinel "ZZZ" appended. Head-truncate would cut off at "aaa…",
+    // tail-truncate must keep the "ZZZ" tail visible.
+    const long = 'a'.repeat(120) + 'ZZZ'
+    const messages: ChatMessage[] = [
+      msg({ id: 'u1', role: 'user', content: 'go' }),
+      msg({ id: 'a1', role: 'assistant', content: long, isStreaming: true }),
+    ]
+    renderDock({ recentMessages: messages })
+    const tailRow = screen.getByText(/ZZZ$/)
+    expect(tailRow.textContent!.startsWith('…')).toBe(true)
+  })
+
+  it('uses head truncation for finished assistant messages (non-streaming)', () => {
+    const long = 'BBB' + 'a'.repeat(120) + 'ZZZ'
+    const messages: ChatMessage[] = [
+      msg({ id: 'a1', role: 'assistant', content: long, isStreaming: false }),
+    ]
+    renderDock({ recentMessages: messages })
+    const headRow = screen.getByText(/^BBB/)
+    expect(headRow.textContent!.endsWith('…')).toBe(true)
+    expect(headRow.textContent!.includes('ZZZ')).toBe(false)
+  })
 })
