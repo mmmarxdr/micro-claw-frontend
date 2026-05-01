@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import { Plus } from 'lucide-react'
 import { useTheme } from '../../contexts/ThemeContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { LiminalMark } from './LiminalMark'
@@ -110,19 +111,30 @@ export function LiminalSidebar({
             if (drawerOpen) onClose?.()
             onNewChat()
           }}
-          className="flex items-center gap-2 text-left rounded-[5px] mb-3 transition-colors hover:opacity-90"
+          className="flex items-center gap-2 text-left rounded-[5px] mb-3 transition-colors"
           style={{
             padding: '6px 10px',
-            border: '1px solid var(--accent)',
-            background: 'var(--accent)',
-            color: 'var(--bg-elev)',
+            border: '1px solid var(--line)',
+            background: 'var(--bg-elev)',
             fontSize: 12,
-            fontWeight: 500,
+            color: 'var(--ink-muted)',
           }}
           aria-label="Start a new chat"
         >
-          <span style={{ fontSize: 14, lineHeight: 1, fontWeight: 600 }}>+</span>
-          <span className="flex-1 font-sans">new chat</span>
+          <span
+            style={{
+              width: 11,
+              height: 11,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--accent)',
+              flexShrink: 0,
+            }}
+          >
+            <Plus size={11} strokeWidth={2} />
+          </span>
+          <span className="flex-1 font-serif italic">new chat</span>
         </button>
       )}
 
