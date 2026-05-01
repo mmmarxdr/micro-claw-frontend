@@ -19,6 +19,12 @@ interface LiminalInputProps {
   onMention?: () => void
   /** Auto-focus on mount. Default true. */
   autoFocus?: boolean
+  /**
+   * Imperative focus signal: when this number changes (and is > 0), the
+   * textarea grabs focus. Used by ChatPage to refocus the fullscreen input
+   * after the user expanded the chat from the floating dock.
+   */
+  focusToken?: number
 }
 
 /**
@@ -37,6 +43,7 @@ export function LiminalInput({
   onToolsMenu,
   onMention,
   autoFocus = true,
+  focusToken,
 }: LiminalInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const shouldRefocusRef = useRef(false)
@@ -54,6 +61,14 @@ export function LiminalInput({
   useEffect(() => {
     if (autoFocus) textareaRef.current?.focus()
   }, [autoFocus])
+
+  // External focus signal — fires whenever focusToken changes (and is set).
+  // Skips the very first render so the default mount path doesn't double-focus
+  // (autoFocus already covers initial focus when desired).
+  useEffect(() => {
+    if (focusToken === undefined || focusToken === 0) return
+    textareaRef.current?.focus()
+  }, [focusToken])
 
   // When the input becomes disabled on submit (isWaiting=true), the browser
   // drops focus from the <textarea>. Re-focus once the turn finishes so the
