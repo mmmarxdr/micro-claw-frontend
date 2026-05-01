@@ -38,6 +38,12 @@ interface LiminalSidebarProps {
   todayCost?: string
   /** Build version surfaced as a small mono tag in the footer. */
   version?: string
+  /**
+   * Start a new chat session — wipes the in-memory thread, drops the WS
+   * conversation_id, and routes to /chat. Wired by AppLayout to remount
+   * ChatPage via a session key bump.
+   */
+  onNewChat?: () => void
 }
 
 export function LiminalSidebar({
@@ -48,6 +54,7 @@ export function LiminalSidebar({
   contextUsage,
   todayCost = '—',
   version,
+  onNewChat,
 }: LiminalSidebarProps) {
   const { theme, toggleTheme } = useTheme()
   const { logout } = useAuth()
@@ -95,6 +102,29 @@ export function LiminalSidebar({
         <span className="flex-1 font-serif italic">summon…</span>
         <Kbd>{MOD} K</Kbd>
       </button>
+
+      {onNewChat && (
+        <button
+          type="button"
+          onClick={() => {
+            if (drawerOpen) onClose?.()
+            onNewChat()
+          }}
+          className="flex items-center gap-2 text-left rounded-[5px] mb-3 transition-colors hover:opacity-90"
+          style={{
+            padding: '6px 10px',
+            border: '1px solid var(--accent)',
+            background: 'var(--accent)',
+            color: 'var(--bg-elev)',
+            fontSize: 12,
+            fontWeight: 500,
+          }}
+          aria-label="Start a new chat"
+        >
+          <span style={{ fontSize: 14, lineHeight: 1, fontWeight: 600 }}>+</span>
+          <span className="flex-1 font-sans">new chat</span>
+        </button>
+      )}
 
       <nav className="flex flex-col gap-px">
         {NAV_ITEMS.map((item) => (
