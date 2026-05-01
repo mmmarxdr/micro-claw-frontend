@@ -903,6 +903,11 @@ export function ChatPage({
   )
   const showLiveReasoning = liveReasoning.length > 0 && !turnHasMessageRef.current
 
+  // Slice for the dock preview. Lifted here (not inside ChatDockView) so the
+  // memoized component can rely on referential stability and skip re-renders
+  // when the tail hasn't changed mid-stream.
+  const recentMessagesForDock = useMemo(() => messages.slice(-3), [messages])
+
   // Render-mode branches. All hooks above run on every render so the WS
   // connection and message history stay live even when the page isn't
   // visually shown (mode='hidden') or is rendered as the floating dock.
@@ -910,7 +915,7 @@ export function ChatPage({
   if (mode === 'dock') {
     return (
       <ChatDockView
-        messages={messages}
+        recentMessages={recentMessagesForDock}
         status={status}
         onExpand={onDockExpand ?? (() => {})}
         onClose={onDockClose ?? (() => {})}

@@ -19,7 +19,7 @@ export function Toast({ message, variant = 'success', onDismiss, duration = 4000
 
   return (
     <div className={cn(
-      'fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-md text-sm font-medium',
+      'fixed bottom-6 right-6 z-[60] flex items-center gap-3 px-4 py-3 rounded-md text-sm font-medium',
       'bg-surface border border-border',
       variant === 'success'
         ? 'border-l-2 border-l-success text-text-primary'

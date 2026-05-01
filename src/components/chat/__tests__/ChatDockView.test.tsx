@@ -15,7 +15,7 @@ describe('ChatDockView', () => {
   it('renders the ASCII placeholder when there are no messages', () => {
     render(
       <ChatDockView
-        messages={[]}
+        recentMessages={[]}
         status="connected"
         onExpand={() => {}}
         onClose={() => {}}
@@ -24,24 +24,20 @@ describe('ChatDockView', () => {
     expect(screen.getByText('--- --- ---')).toBeInTheDocument()
   })
 
-  it('shows only the last 3 messages even when more are passed', () => {
+  it('renders exactly the messages it receives (slicing is the parent\'s concern)', () => {
     const messages: ChatMessage[] = [
-      msg({ id: '1', role: 'user', content: 'first' }),
-      msg({ id: '2', role: 'assistant', content: 'second' }),
       msg({ id: '3', role: 'user', content: 'third' }),
       msg({ id: '4', role: 'assistant', content: 'fourth' }),
       msg({ id: '5', role: 'user', content: 'fifth' }),
     ]
     render(
       <ChatDockView
-        messages={messages}
+        recentMessages={messages}
         status="connected"
         onExpand={() => {}}
         onClose={() => {}}
       />,
     )
-    expect(screen.queryByText('first')).not.toBeInTheDocument()
-    expect(screen.queryByText('second')).not.toBeInTheDocument()
     expect(screen.getByText('third')).toBeInTheDocument()
     expect(screen.getByText('fourth')).toBeInTheDocument()
     expect(screen.getByText('fifth')).toBeInTheDocument()
@@ -51,7 +47,7 @@ describe('ChatDockView', () => {
     const long = 'a'.repeat(120)
     render(
       <ChatDockView
-        messages={[msg({ id: 'long', role: 'user', content: long })]}
+        recentMessages={[msg({ id: 'long', role: 'user', content: long })]}
         status="connected"
         onExpand={() => {}}
         onClose={() => {}}
@@ -66,7 +62,7 @@ describe('ChatDockView', () => {
     const onExpand = vi.fn()
     render(
       <ChatDockView
-        messages={[]}
+        recentMessages={[]}
         status="connected"
         onExpand={onExpand}
         onClose={() => {}}
@@ -76,12 +72,12 @@ describe('ChatDockView', () => {
     expect(onExpand).toHaveBeenCalledTimes(1)
   })
 
-  it('clicking the X invokes onClose and does NOT bubble to onExpand', () => {
+  it('clicking the X invokes onClose and does NOT trigger onExpand', () => {
     const onExpand = vi.fn()
     const onClose = vi.fn()
     render(
       <ChatDockView
-        messages={[]}
+        recentMessages={[]}
         status="connected"
         onExpand={onExpand}
         onClose={onClose}
@@ -92,26 +88,27 @@ describe('ChatDockView', () => {
     expect(onExpand).not.toHaveBeenCalled()
   })
 
-  it('Enter/Space on the dock invokes onExpand for keyboard accessibility', () => {
-    const onExpand = vi.fn()
+  it('expand and close are real <button> elements (keyboard-accessible by default)', () => {
     render(
       <ChatDockView
-        messages={[]}
+        recentMessages={[]}
         status="connected"
-        onExpand={onExpand}
+        onExpand={() => {}}
         onClose={() => {}}
       />,
     )
-    const dock = screen.getByRole('button', { name: /open chat/i })
-    fireEvent.keyDown(dock, { key: 'Enter' })
-    fireEvent.keyDown(dock, { key: ' ' })
-    expect(onExpand).toHaveBeenCalledTimes(2)
+    const expand = screen.getByRole('button', { name: /open chat/i })
+    const close = screen.getByRole('button', { name: /close chat dock/i })
+    expect(expand.tagName).toBe('BUTTON')
+    expect(close.tagName).toBe('BUTTON')
+    // Sibling, not nested — close must not be a descendant of expand.
+    expect(expand.contains(close)).toBe(false)
   })
 
   it('shows a connected indicator when status is "connected"', () => {
     const { container, rerender } = render(
       <ChatDockView
-        messages={[]}
+        recentMessages={[]}
         status="connected"
         onExpand={() => {}}
         onClose={() => {}}
@@ -121,7 +118,7 @@ describe('ChatDockView', () => {
 
     rerender(
       <ChatDockView
-        messages={[]}
+        recentMessages={[]}
         status="disconnected"
         onExpand={() => {}}
         onClose={() => {}}
