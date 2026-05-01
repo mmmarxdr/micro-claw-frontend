@@ -140,7 +140,15 @@ export function AppLayout() {
         className="flex-1 overflow-y-auto min-w-0 h-dvh"
         style={{ background: 'var(--bg)' }}
       >
-        {!isOnChatRoute && <Outlet />}
+        {/*
+          Children list shape MUST stay stable across route changes — if it
+          shrinks (e.g. <Outlet /> conditionally not rendered on /chat),
+          React's positional child reconciliation re-anchors siblings and
+          ChatPage gets unmounted and remounted, wiping `messages` state and
+          the WebSocket. App.tsx renders /chat with element={null}, so the
+          Outlet here is a harmless no-op on /chat — keep it unconditional.
+        */}
+        <Outlet />
         <ChatPage
           mode={chatMode}
           onDockClose={() => setDockClosed(true)}
