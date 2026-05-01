@@ -80,11 +80,25 @@ describe('ChatDockView', () => {
     expect(span.textContent).toBe(multiline)
   })
 
-  it('clicking the header expand button invokes onExpand', () => {
+  it('a quick tap on the header invokes onExpand (below drag threshold)', () => {
     const onExpand = vi.fn()
     renderDock({ onExpand })
-    fireEvent.click(screen.getByRole('button', { name: /open chat/i }))
+    const header = screen.getByRole('button', { name: /open chat/i })
+    // Below the 5px drag threshold → release is interpreted as a click.
+    fireEvent.pointerDown(header, { button: 0, clientX: 100, clientY: 100 })
+    fireEvent.pointerUp(document, { clientX: 102, clientY: 101 })
     expect(onExpand).toHaveBeenCalledTimes(1)
+  })
+
+  it('a drag past the threshold does NOT invoke onExpand', () => {
+    const onExpand = vi.fn()
+    renderDock({ onExpand })
+    const header = screen.getByRole('button', { name: /open chat/i })
+    fireEvent.pointerDown(header, { button: 0, clientX: 100, clientY: 100 })
+    // Move well past 5px before releasing.
+    fireEvent.pointerMove(document, { clientX: 200, clientY: 200 })
+    fireEvent.pointerUp(document, { clientX: 200, clientY: 200 })
+    expect(onExpand).not.toHaveBeenCalled()
   })
 
   it('clicking the X invokes onClose and does NOT trigger onExpand', () => {
