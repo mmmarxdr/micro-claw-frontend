@@ -31,6 +31,13 @@ function shortenModel(id: string): string {
 export function AppLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [cmdOpen, setCmdOpen] = useState(false)
+  // Bump this counter to force ChatPage to remount — wipes the in-memory
+  // thread, the WebSocket reconnects without a conversation_id, and the
+  // backend assigns a fresh server-side conversation. Used by the sidebar's
+  // "+ new chat" button. This is an INTENTIONAL remount triggered by user
+  // action; it does not conflict with the unconditional-Outlet fix below
+  // (that fix prevents ACCIDENTAL remounts on route flips).
+  const [chatSessionKey, setChatSessionKey] = useState(0)
   const { toggleTheme } = useTheme()
   const location = useLocation()
   const navigate = useNavigate()
@@ -117,6 +124,14 @@ export function AppLayout() {
         contextUsage={contextUsage}
         todayCost={todayCost}
         version={status?.version}
+        onNewChat={() => {
+          setChatSessionKey((k) => k + 1)
+          // Clear any ?conversation_id / ?prompt from the URL so the freshly
+          // mounted ChatPage reads no resume context.
+          if (location.pathname !== '/chat' || location.search) {
+            navigate('/chat', { replace: true })
+          }
+        }}
       />
 
       {drawerOpen && (
@@ -150,6 +165,7 @@ export function AppLayout() {
         */}
         <Outlet />
         <ChatPage
+          key={chatSessionKey}
           mode={chatMode}
           onDockClose={() => setDockClosed(true)}
           onDockExpand={() => navigate('/chat')}
