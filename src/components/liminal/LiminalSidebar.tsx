@@ -160,11 +160,15 @@ export function LiminalSidebar({
         </div>
         {contextUsage && (
           <div className="flex justify-between items-center" style={{ padding: '2px 0' }}>
-            <span>ctx</span>
+            <span className="flex items-center gap-1.5">
+              <span>ctx</span>
+              <span style={{ color: 'var(--ink)' }}>{Math.round(ctxPercent)}%</span>
+            </span>
             <span className="flex items-center gap-1.5" style={{ color: 'var(--ink)' }}>
               <span
                 className="inline-block relative rounded-full"
                 style={{ width: 30, height: 3, background: 'var(--line)' }}
+                aria-hidden
               >
                 <span
                   className="absolute left-0 top-0 h-full rounded-full"
