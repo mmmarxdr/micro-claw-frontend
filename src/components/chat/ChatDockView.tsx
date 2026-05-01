@@ -1,8 +1,6 @@
-import { memo, useEffect, useState, type KeyboardEvent } from 'react'
+import { memo, useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { Send, X } from 'lucide-react'
 import type { ChatMessage } from '../../types/chat'
-
-const TRUNCATE_LEN = 60
 
 interface ChatDockViewProps {
   recentMessages: ChatMessage[]
@@ -13,23 +11,6 @@ interface ChatDockViewProps {
   isWaiting: boolean
   onExpand: () => void
   onClose: () => void
-}
-
-function truncate(text: string, max = TRUNCATE_LEN): string {
-  const collapsed = text.replace(/\s+/g, ' ').trim()
-  if (collapsed.length <= max) return collapsed
-  return collapsed.slice(0, Math.max(0, max - 1)) + '…'
-}
-
-// Tail truncation — used for messages currently streaming so the visible
-// portion of the preview keeps changing as new tokens arrive. Without this,
-// once content exceeds TRUNCATE_LEN the head-truncate output stays static
-// even though the underlying content is still growing, and the dock looks
-// frozen mid-stream.
-function truncateTail(text: string, max = TRUNCATE_LEN): string {
-  const collapsed = text.replace(/\s+/g, ' ').trim()
-  if (collapsed.length <= max) return collapsed
-  return '…' + collapsed.slice(-(max - 1))
 }
 
 function ChatDockViewImpl({
@@ -60,6 +41,20 @@ function ChatDockViewImpl({
       if (canSend) onSend()
     }
   }
+
+  // Auto-scroll the messages list to the bottom on new content — but ONLY if
+  // the user was already near the bottom. Lets them scroll up to read older
+  // history without the streaming dragging them back down on every token.
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const c = messagesContainerRef.current
+    if (!c) return
+    const distanceFromBottom = c.scrollHeight - c.scrollTop - c.clientHeight
+    if (distanceFromBottom < 32) {
+      messagesEndRef.current?.scrollIntoView({ block: 'end' })
+    }
+  }, [recentMessages, isWaiting])
 
   return (
     <div
@@ -147,16 +142,26 @@ function ChatDockViewImpl({
       </button>
 
       {/*
-        Messages preview is mouse-clickable to expand (convenience, no role)
-        — keyboard users have the header button. Scrolls if the last 3
-        messages overflow the available space.
+        Mini-chat surface — full message content (multi-line wrap), scrollable.
+        No truncation: the dock is a real chat surface, not a preview, so users
+        can READ as well as type. For very long messages, the user scrolls
+        within this container or expands to fullscreen via the header.
+
+        The container is mouse-clickable to expand (convenience), but text
+        selection inside still works since selection doesn't fire click on
+        mouseup if a drag occurred.
       */}
       <div
-        onClick={onExpand}
-        className="flex-1 flex flex-col gap-1.5 overflow-y-auto cursor-pointer"
+        ref={messagesContainerRef}
+        onClick={() => {
+          // Don't expand if the user was selecting text — only on a clean click.
+          if (window.getSelection()?.toString()) return
+          onExpand()
+        }}
+        className="flex-1 flex flex-col gap-2 overflow-y-auto cursor-pointer"
         style={{ padding: '8px 12px', minHeight: 0 }}
       >
-        {recentMessages.length === 0 ? (
+        {recentMessages.length === 0 && !isWaiting ? (
           <span
             className="font-mono"
             style={{ fontSize: 11, color: 'var(--ink-faint)', letterSpacing: 1 }}
@@ -164,27 +169,30 @@ function ChatDockViewImpl({
             --- --- ---
           </span>
         ) : (
-          recentMessages.map((m, i) => {
-            const isLast = i === recentMessages.length - 1
-            const streamingTail = isLast && m.role === 'assistant' && m.isStreaming
-            const visible = streamingTail
-              ? truncateTail(m.content || '—')
-              : truncate(m.content || '—')
-            return (
-              <div
-                key={m.id}
-                className="flex gap-1.5 min-w-0"
-                style={{ fontSize: 11, lineHeight: 1.45 }}
+          recentMessages.map((m) => (
+            <div
+              key={m.id}
+              className="flex flex-col gap-0.5 min-w-0"
+              style={{ fontSize: 12, lineHeight: 1.5 }}
+            >
+              <span
+                className="font-mono shrink-0"
+                style={{ fontSize: 10, color: 'var(--ink-muted)', letterSpacing: 0.5 }}
               >
-                <span className="font-mono shrink-0" style={{ color: 'var(--ink-muted)' }}>
-                  {m.role === 'user' ? 'you' : m.role === 'assistant' ? 'daimon' : '·'}
-                </span>
-                <span className="font-serif truncate min-w-0" style={{ color: 'var(--ink)' }}>
-                  {visible}
-                </span>
-              </div>
-            )
-          })
+                {m.role === 'user' ? 'you' : m.role === 'assistant' ? 'daimon' : '·'}
+              </span>
+              <span
+                className="font-serif min-w-0"
+                style={{
+                  color: 'var(--ink)',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                }}
+              >
+                {m.content || '—'}
+              </span>
+            </div>
+          ))
         )}
         {/*
           Thinking indicator — shown when a turn is in flight but the agent
@@ -200,11 +208,14 @@ function ChatDockViewImpl({
             if (liveStream) return null
             return (
               <div
-                className="flex gap-1.5 min-w-0 items-center"
-                style={{ fontSize: 11, lineHeight: 1.45 }}
+                className="flex flex-col gap-0.5 min-w-0"
+                style={{ fontSize: 12, lineHeight: 1.5 }}
                 aria-live="polite"
               >
-                <span className="font-mono shrink-0" style={{ color: 'var(--ink-muted)' }}>
+                <span
+                  className="font-mono shrink-0"
+                  style={{ fontSize: 10, color: 'var(--ink-muted)', letterSpacing: 0.5 }}
+                >
                   daimon
                 </span>
                 <span
@@ -216,6 +227,7 @@ function ChatDockViewImpl({
               </div>
             )
           })()}
+        <div ref={messagesEndRef} />
       </div>
 
       {/*

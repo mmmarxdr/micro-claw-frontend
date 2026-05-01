@@ -1,8 +1,14 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeAll } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 
 import { ChatDockView } from '../ChatDockView'
 import type { ChatMessage } from '../../../types/chat'
+
+// JSDOM doesn't implement scrollIntoView; the dock's auto-scroll effect
+// would otherwise throw on render. Stub once.
+beforeAll(() => {
+  Element.prototype.scrollIntoView = vi.fn()
+})
 
 function msg(partial: Partial<ChatMessage> & { id: string; role: ChatMessage['role']; content: string }): ChatMessage {
   return {
@@ -55,12 +61,23 @@ describe('ChatDockView', () => {
     expect(screen.getByText('fifth')).toBeInTheDocument()
   })
 
-  it('truncates long message content with an ellipsis', () => {
-    const long = 'a'.repeat(120)
+  it('renders full message content without truncation', () => {
+    const long = 'BBB' + 'a'.repeat(200) + 'ZZZ'
     renderDock({ recentMessages: [msg({ id: 'long', role: 'user', content: long })] })
-    const rendered = screen.getByText(/^a+…$/)
-    expect(rendered.textContent!.length).toBeLessThan(long.length)
-    expect(rendered.textContent!.endsWith('…')).toBe(true)
+    const rendered = screen.getByText(long)
+    expect(rendered.textContent).toBe(long)
+  })
+
+  it('preserves newlines in message content (whitespace-pre-wrap)', () => {
+    const multiline = 'line one\nline two\nline three'
+    const { container } = renderDock({
+      recentMessages: [msg({ id: 'm', role: 'assistant', content: multiline })],
+    })
+    // getByText normalizes whitespace, so query by attribute and verify the
+    // raw textContent kept the newlines + the CSS that renders them as such.
+    const span = container.querySelector('span[style*="pre-wrap"]') as HTMLElement
+    expect(span).toBeTruthy()
+    expect(span.textContent).toBe(multiline)
   })
 
   it('clicking the header expand button invokes onExpand', () => {
@@ -218,28 +235,16 @@ describe('ChatDockView', () => {
     expect(screen.queryByText('…')).not.toBeInTheDocument()
   })
 
-  it('uses tail truncation for the last message while it is streaming', () => {
-    // The first 60 chars of the long content are all "a"s, the tail has the
-    // unique sentinel "ZZZ" appended. Head-truncate would cut off at "aaa…",
-    // tail-truncate must keep the "ZZZ" tail visible.
-    const long = 'a'.repeat(120) + 'ZZZ'
+  it('streaming assistant message renders the full content (no truncation)', () => {
+    // The dock is a real chat surface, not a preview — both head and tail of a
+    // long streaming response must be present in the DOM (the user scrolls
+    // within the messages container to read).
+    const long = 'BBB' + 'a'.repeat(200) + 'ZZZ'
     const messages: ChatMessage[] = [
       msg({ id: 'u1', role: 'user', content: 'go' }),
       msg({ id: 'a1', role: 'assistant', content: long, isStreaming: true }),
     ]
     renderDock({ recentMessages: messages })
-    const tailRow = screen.getByText(/ZZZ$/)
-    expect(tailRow.textContent!.startsWith('…')).toBe(true)
-  })
-
-  it('uses head truncation for finished assistant messages (non-streaming)', () => {
-    const long = 'BBB' + 'a'.repeat(120) + 'ZZZ'
-    const messages: ChatMessage[] = [
-      msg({ id: 'a1', role: 'assistant', content: long, isStreaming: false }),
-    ]
-    renderDock({ recentMessages: messages })
-    const headRow = screen.getByText(/^BBB/)
-    expect(headRow.textContent!.endsWith('…')).toBe(true)
-    expect(headRow.textContent!.includes('ZZZ')).toBe(false)
+    expect(screen.getByText(long)).toBeInTheDocument()
   })
 })
